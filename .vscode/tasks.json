@@ -1,0 +1,55 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CRT: Backend indítás",
+      "type": "shell",
+      "command": "py -3.11 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "CRT: PostgreSQL indítás",
+      "type": "shell",
+      "command": "db\\pgsql\\bin\\pg_ctl.exe start -D db_data -l pg.log -w",
+      "presentation": { "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "CRT: PostgreSQL leállítás",
+      "type": "shell",
+      "command": "db\\pgsql\\bin\\pg_ctl.exe stop -D db_data -m fast",
+      "presentation": { "panel": "shared", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "CRT: DB séma létrehozás",
+      "type": "shell",
+      "command": "py -3.11 db_schema.py",
+      "presentation": { "panel": "shared", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "CRT: DB migráció v0.2",
+      "type": "shell",
+      "command": "py -3.11 db_migrate_v02.py",
+      "presentation": { "panel": "shared", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "CRT: Pip csomagok telepítése",
+      "type": "shell",
+      "command": "py -3.11 -m pip install fastapi uvicorn sqlalchemy psycopg2-binary ntplib openpyxl pdfplumber python-docx beautifulsoup4 anthropic",
+      "presentation": { "panel": "shared", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "CRT: Git push",
+      "type": "shell",
+      "command": "git add . && git commit -m 'update' && git push",
+      "presentation": { "panel": "shared", "reveal": "always" },
+      "problemMatcher": []
+    }
+  ]
+}

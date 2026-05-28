@@ -1,0 +1,34 @@
+{
+  "python.defaultInterpreterPath": "py",
+  "python.terminal.activateEnvironment": false,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": false
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "editor.rulers": [100],
+  "editor.minimap.enabled": false,
+  "files.encoding": "utf8",
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/db_data": true,
+    "**/db/pgsql": true
+  },
+  "search.exclude": {
+    "**/db_data": true,
+    "**/db/pgsql": true,
+    "**/__pycache__": true
+  }
+}
