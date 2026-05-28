@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>CRT – Cikktörzs</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #12121f;
+            color: #dde1e7;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── FEJLÉC ─────────────────────────────────────── */
+        .header {
+            background: #1c1c30;
+            border-bottom: 1px solid #2a2a4a;
+            padding: 11px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+        .back-btn {
+            background: none;
+            border: 1px solid #2a2a4a;
+            color: #aaa;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: .8rem;
+            transition: border-color .15s, color .15s;
+        }
+        .back-btn:hover { border-color: #c8a4f8; color: #c8a4f8; }
+        .header-title { font-size: 1.05rem; color: #c8a4f8; font-weight: 700; }
+        .header-sub   { font-size: .7rem; color: #555; margin-top: 2px; }
+        .tabs { display: flex; gap: 4px; margin-left: auto; }
+        .tab {
+            padding: 5px 16px;
+            border-radius: 6px;
+            border: 1px solid #2a2a4a;
+            background: none;
+            color: #888;
+            cursor: pointer;
+            font-size: .82rem;
+            transition: background .12s, border-color .12s, color .12s;
+        }
+        .tab.active { background: #7c5cbf22; border-color: #7c5cbf; color: #c8a4f8; }
+
+        /* ── ESZKÖZTÁR ───────────────────────────────────── */
+        .toolbar {
+            background: #161625;
+            border-bottom: 1px solid #2a2a4a;
+            padding: 7px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .toolbar-btn {
+            background: #1c1c30;
+            border: 1px solid #2a2a4a;
+            color: #aaa;
+            padding: 4px 11px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: .76rem;
+            transition: border-color .12s, color .12s;
+        }
+        .toolbar-btn:hover { border-color: #00b894; color: #00b894; }
+        .cat-filter {
+            background: #1c1c30;
+            border: 1px solid #2a2a4a;
+            color: #dde1e7;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: .76rem;
+            outline: none;
+        }
+        .stat-badge { margin-left: auto; font-size: .72rem; color: #555; }
+
+        /* ── FŐ ELRENDEZÉS ───────────────────────────────── */
+        .main { display: flex; flex: 1; overflow: hidden; }
+
+        /* ── FA PANEL (bal 2/3) ──────────────────────────── */
+        .tree-panel {
+            flex: 0 0 66%;
+            border-right: 1px solid #2a2a4a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .tree-scroll { flex: 1; overflow-y: auto; padding: 8px 0; }
+        .tree-scroll::-webkit-scrollbar { width: 5px; }
+        .tree-scroll::-webkit-scrollbar-track { background: #12121f; }
+        .tree-scroll::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+
+        /* kategória sor */
+        .cat-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 16px;
+            cursor: pointer;
+            font-size: .82rem;
+            color: #aaa;
+            user-select: none;
+        }
+        .cat-header:hover { background: #1c1c30; color: #dde1e7; }
+        .cat-arrow { font-size: .68rem; transition: transform .15s; width: 10px; display: inline-block; }
+        .cat-arrow.open { transform: rotate(90deg); }
+        .cat-name  { font-weight: 600; }
+        .cat-count { font-size: .68rem; color: #555; margin-left: auto; }
+        .cat-children { display: none; }
+        .cat-children.open { display: block; }
+
+        /* tétel sor */
+        .tree-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 3px 16px 3px 36px;
+            font-size: .79rem;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            transition: background .1s;
+        }
+        .tree-item:hover    { background: #1c1c30; border-left-color: #7c5cbf; }
+        .tree-item.selected { background: #1c1c3a; border-left-color: #c8a4f8; }
+        .item-icon { font-size: .85rem; flex-shrink: 0; }
+        .item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-mfr  { font-size: .68rem; color: #555; flex-shrink: 0; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .item-unit { font-size: .68rem; color: #7c5cbf; flex-shrink: 0; min-width: 28px; text-align: right; }
+        .item-date { font-size: .66rem; flex-shrink: 0; min-width: 76px; text-align: right; }
+        .item-date.fresh { color: #00b894; }
+        .item-date.stale { color: #f39c12; }
+        .item-date.old   { color: #e74c3c; }
+        .item-date.none  { color: #444; }
+
+        /* ── DETAIL SÁV (alul) ───────────────────────────── */
+        .detail-bar {
+            display: none;
+            background: #0f0f1e;
+            border-top: 1px solid #2a2a4a;
+            padding: 8px 16px;
+            font-size: .76rem;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .detail-bar.show { display: flex; align-items: center; }
+        .detail-key { color: #555; }
+        .detail-val { color: #dde1e7; }
+
+        /* ── JOBB PANEL (1/3) ────────────────────────────── */
+        .right-panel {
+            flex: 0 0 34%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* KERESÉS (felső fele) */
+        .search-section {
+            flex: 0 0 50%;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            flex-direction: column;
+            padding: 13px;
+            gap: 9px;
+            overflow: hidden;
+        }
+        .section-label {
+            font-size: .67rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #555;
+            border-left: 3px solid #3a3a6a;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+        .search-wrap { position: relative; flex-shrink: 0; }
+        .search-input {
+            width: 100%;
+            background: #12121f;
+            border: 1px solid #2a2a4a;
+            color: #dde1e7;
+            padding: 7px 10px 7px 30px;
+            border-radius: 6px;
+            font-size: .81rem;
+            outline: none;
+            transition: border-color .15s;
+        }
+        .search-input:focus { border-color: #7c5cbf; }
+        .search-icon {
+            position: absolute; left: 9px; top: 50%;
+            transform: translateY(-50%);
+            color: #555; font-size: .78rem; pointer-events: none;
+        }
+        .search-results { flex: 1; overflow-y: auto; }
+        .sr-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 6px; font-size: .77rem; cursor: pointer; border-radius: 4px;
+        }
+        .sr-item:hover { background: #1c1c30; }
+        .sr-name  { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sr-badge { font-size: .63rem; padding: 1px 6px; border-radius: 8px; flex-shrink: 0; }
+        .b-termek      { background: #00b89422; color: #00b894; }
+        .b-tevekenyseg { background: #7c5cbf22; color: #c8a4f8; }
+        .search-hint { font-size: .72rem; color: #444; text-align: center; padding: 18px 0; }
+
+        /* FELTÖLTÉS (alsó fele) */
+        .upload-section {
+            flex: 1;
+            display: flex; flex-direction: column;
+            padding: 13px; gap: 9px; overflow: hidden;
+        }
+        .dropzone {
+            flex: 1;
+            border: 2px dashed #2a2a4a;
+            border-radius: 8px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 7px; cursor: pointer;
+            transition: border-color .15s, background .15s;
+        }
+        .dropzone:hover, .dropzone.over { border-color: #7c5cbf; background: #7c5cbf08; }
+        .drop-icon    { font-size: 1.7rem; }
+        .drop-text    { font-size: .78rem; color: #666; text-align: center; line-height: 1.5; }
+        .drop-formats { font-size: .66rem; color: #444; }
+        input[type="file"] { display: none; }
+        .btn-manual {
+            background: #1c1c30; border: 1px solid #2a2a4a;
+            color: #aaa; padding: 7px; border-radius: 6px;
+            cursor: pointer; font-size: .77rem; text-align: center;
+            transition: border-color .12s, color .12s;
+        }
+        .btn-manual:hover { border-color: #00b894; color: #00b894; }
+
+        /* ── ÜRES ÁLLAPOT ────────────────────────────────── */
+        .empty-state {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            height: 180px; color: #444; font-size: .82rem; gap: 8px;
+            text-align: center; line-height: 1.6;
+        }
+        .empty-state .esc { font-size: 2rem; }
+
+        /* ── LOADING ─────────────────────────────────────── */
+        .loading {
+            display: flex; align-items: center; justify-content: center;
+            height: 100px; color: #555; font-size: .8rem; gap: 8px;
+        }
+
+        /* ── REVIEW OVERLAY ─────────────────────────────── */
+        .rev-overlay {
+            display: none; position: fixed; inset: 0;
+            background: #12121f; z-index: 500; flex-direction: column;
+        }
+        .rev-overlay.show { display: flex; }
+
+        .rev-hdr {
+            background: #1c1c30; border-bottom: 1px solid #2a2a4a;
+            padding: 10px 20px; display: flex; align-items: center;
+            gap: 10px; flex-shrink: 0; flex-wrap: wrap;
+        }
+        .rev-title { font-size: .92rem; color: #c8a4f8; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rev-sub   { font-size: .7rem; color: #555; }
+
+        .rev-acts { display: flex; gap: 7px; flex-shrink: 0; }
+        .btn-ai    { background: #7c5cbf22; border: 1px solid #7c5cbf; color: #c8a4f8;  padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .77rem; transition: background .12s; }
+        .btn-ai:hover    { background: #7c5cbf44; }
+        .btn-ai:disabled { opacity: .35; cursor: default; }
+        .btn-acc   { background: #00b89422; border: 1px solid #00b894; color: #00b894; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .77rem; }
+        .btn-acc:hover { background: #00b89444; }
+        .btn-sav   { background: #00b894; border: none; color: #12121f; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: .77rem; font-weight: 700; }
+        .btn-sav:hover    { opacity: .88; }
+        .btn-sav:disabled { opacity: .35; cursor: default; }
+        .tok-badge { font-size: .67rem; color: #555; background: #12121f; border: 1px solid #2a2a4a; padding: 3px 9px; border-radius: 10px; }
+
+        .rev-scroll { flex: 1; overflow-y: auto; padding: 0; }
+        .rev-scroll::-webkit-scrollbar { width: 5px; }
+        .rev-scroll::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+
+        .rev-tbl { width: 100%; border-collapse: collapse; font-size: .79rem; }
+        .rev-tbl thead th {
+            background: #1c1c30; padding: 7px 9px; text-align: left;
+            font-size: .68rem; color: #666; text-transform: uppercase;
+            letter-spacing: 1px; border-bottom: 1px solid #2a2a4a;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .rev-tbl tbody tr:hover { background: #1c1c2a; }
+        .rev-tbl tbody td { padding: 4px 7px; border-bottom: 1px solid #1a1a2e; vertical-align: middle; }
+        .rev-tbl tr.skipped td { opacity: .38; }
+        .rev-tbl tr.skipped .rev-inp { pointer-events: none; }
+
+        .rev-inp {
+            background: #12121f; border: 1px solid #2a2a4a; color: #dde1e7;
+            padding: 3px 7px; border-radius: 4px; font-size: .78rem;
+            width: 100%; outline: none; transition: border-color .12s;
+        }
+        .rev-inp:focus  { border-color: #7c5cbf; }
+        .rev-inp.ai-ok  { border-color: #7c5cbf55; background: #7c5cbf0a; }
+        .rev-inp.ai-low { border-color: #f39c1255; background: #f39c120a; }
+
+        .st { display: inline-block; font-size: .63rem; padding: 2px 7px; border-radius: 9px; font-weight: 600; white-space: nowrap; }
+        .st-new  { background: #00b89422; color: #00b894; }
+        .st-ai   { background: #7c5cbf22; color: #c8a4f8; }
+        .st-warn { background: #f39c1222; color: #f39c12; }
+        .st-raw  { background: #e74c3c22; color: #e74c3c; }
+        .st-skip { background: #22223a;   color: #555; }
+
+        .btn-row-ai   { background: none; border: 1px solid #7c5cbf44; color: #7c5cbf; padding: 2px 7px; border-radius: 4px; cursor: pointer; font-size: .7rem; white-space: nowrap; }
+        .btn-row-ai:hover    { border-color: #c8a4f8; color: #c8a4f8; }
+        .btn-row-ai:disabled { opacity: .3; cursor: default; }
+        .btn-row-skip { background: none; border: 1px solid #2a2a4a; color: #555; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: .7rem; }
+        .btn-row-skip:hover { border-color: #e74c3c55; color: #e74c3c; }
+
+        .rev-footer {
+            background: #161625; border-top: 1px solid #2a2a4a;
+            padding: 6px 20px; font-size: .73rem; color: #555;
+            display: flex; gap: 18px; flex-shrink: 0; align-items: center; flex-wrap: wrap;
+        }
+        .rev-footer span { white-space: nowrap; }
+        .rev-footer strong { color: #dde1e7; }
+        .ai-progress {
+            display: none; align-items: center; gap: 8px;
+            font-size: .74rem; color: #c8a4f8; margin-left: auto;
+        }
+        .ai-progress.show { display: flex; }
+        .ai-spin { animation: spin .8s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── TOAST ───────────────────────────────────────── */
+        .toast {
+            position: fixed; bottom: 18px; right: 18px;
+            background: #1c1c30; border: 1px solid #2a2a4a;
+            border-radius: 8px; padding: 9px 15px;
+            font-size: .79rem; color: #dde1e7;
+            box-shadow: 0 4px 20px rgba(0,0,0,.5);
+            z-index: 9999; opacity: 0; transform: translateY(8px);
+            transition: opacity .2s, transform .2s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.ok   { border-color: #00b894; }
+        .toast.err  { border-color: #e74c3c; }
+        .toast.warn { border-color: #f39c12; }
+    </style>
+</head>
+<body>
+
+<!-- FEJLÉC -->
+<div class="header">
+    <button class="back-btn" onclick="window.close()">← Vissza</button>
+    <div>
+        <div class="header-title">📦 Cikktörzs &amp; Tevékenységek</div>
+        <div class="header-sub">Civil Rendszertechnika Kft. — cikktörzs kezelő</div>
+    </div>
+    <div class="tabs">
+        <button class="tab active" id="tab-termek"      onclick="switchTab('termekek')">📦 Termékek</button>
+        <button class="tab"        id="tab-tevekenyseg" onclick="switchTab('tevekenysgek')">⚙️ Tevékenységek</button>
+    </div>
+</div>
+
+<!-- ESZKÖZTÁR -->
+<div class="toolbar">
+    <button class="toolbar-btn" onclick="loadTree()">🔄 Frissít</button>
+    <button class="toolbar-btn" onclick="expandAll()">▼ Mind kinyit</button>
+    <button class="toolbar-btn" onclick="collapseAll()">▶ Mind becsuk</button>
+    <select class="cat-filter" id="catFilter" onchange="renderTree()">
+        <option value="">— Minden kategória —</option>
+    </select>
+    <span class="stat-badge" id="statBadge">betöltés…</span>
+</div>
+
+<!-- FŐ TARTALOM -->
+<div class="main">
+
+    <!-- FA STRUKTÚRA -->
+    <div class="tree-panel">
+        <div class="tree-scroll" id="treeScroll">
+            <div class="loading">⏳ Betöltés…</div>
+        </div>
+        <div class="detail-bar" id="detailBar"></div>
+    </div>
+
+    <!-- JOBB PANEL -->
+    <div class="right-panel">
+
+        <!-- KERESÉS -->
+        <div class="search-section">
+            <div class="section-label">Keresés</div>
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input class="search-input" id="searchInput" type="text"
+                    placeholder="Keresés névben, gyártóban…"
+                    oninput="onSearch(this.value)">
+            </div>
+            <div class="search-results" id="searchResults">
+                <div class="search-hint">Írj legalább 2 karaktert</div>
+            </div>
+        </div>
+
+        <!-- FELTÖLTÉS -->
+        <div class="upload-section">
+            <div class="section-label">Cikktörzs feltöltés</div>
+            <div class="dropzone" id="dropzone"
+                onclick="document.getElementById('fileInput').click()"
+                ondragover="onDragOver(event)"
+                ondragleave="onDragLeave(event)"
+                ondrop="onDrop(event)">
+                <div class="drop-icon">📤</div>
+                <div class="drop-text">Húzd ide a fájlt<br>vagy kattints a tallózáshoz</div>
+                <div class="drop-formats">xlsx · csv · pdf · docx · html · md</div>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.html,.htm,.md"
+                onchange="onFileSelect(this.files[0])">
+            <button class="btn-manual" onclick="openManualEntry()">+ Kézi bevitel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- REVIEW OVERLAY -->
+<div class="rev-overlay" id="revOverlay">
+    <div class="rev-hdr">
+        <button class="back-btn" onclick="closeReview()">← Vissza</button>
+        <div>
+            <div class="rev-title" id="revTitle">Feltöltött sorok</div>
+            <div class="rev-sub" id="revSub"></div>
+        </div>
+        <div class="rev-acts">
+            <span class="tok-badge" id="tokBadge" style="display:none">0 token</span>
+            <button class="btn-ai"  id="btnAiAll"  onclick="identifyAll()">🤖 AI azonosítás – mind</button>
+            <button class="btn-acc" id="btnAccAll" onclick="acceptAllGreen()">✅ Elfogad kész sorokat</button>
+            <button class="btn-sav" id="btnSave"   onclick="saveRows()" disabled>💾 Mentés DB-be</button>
+        </div>
+    </div>
+
+    <div class="rev-scroll">
+        <table class="rev-tbl">
+            <thead>
+                <tr>
+                    <th style="width:30px"><input type="checkbox" id="chkAll" onchange="toggleAll(this.checked)"></th>
+                    <th style="width:34%">Megnevezés</th>
+                    <th style="width:16%">Gyártó</th>
+                    <th style="width:8%">Egység</th>
+                    <th style="width:16%">Kategória</th>
+                    <th style="width:80px">Állapot</th>
+                    <th style="width:110px">Műveletek</th>
+                </tr>
+            </thead>
+            <tbody id="revBody"></tbody>
+        </table>
+    </div>
+
+    <div class="rev-footer">
+        <span>Összes: <strong id="fTotal">0</strong></span>
+        <span style="color:#00b894">Kész: <strong id="fGreen">0</strong></span>
+        <span style="color:#c8a4f8">AI: <strong id="fAi">0</strong></span>
+        <span style="color:#f39c12">Bizonytalan: <strong id="fWarn">0</strong></span>
+        <span style="color:#e74c3c">Nyers: <strong id="fRaw">0</strong></span>
+        <span style="color:#555">Kihagyva: <strong id="fSkip">0</strong></span>
+        <div class="ai-progress" id="aiProgress">
+            <span class="ai-spin">⚙️</span> AI azonosítás folyamatban…
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000';
+let allData = { categories: [], products: [], activities: [] };
+let currentTab = 'termekek';
+
+// ── TAB ──────────────────────────────────────────────────────
+function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-termek').classList.toggle('active', tab === 'termekek');
+    document.getElementById('tab-tevekenyseg').classList.toggle('active', tab === 'tevekenysgek');
+    document.getElementById('detailBar').classList.remove('show');
+    renderTree();
+}
+
+// ── BETÖLTÉS ─────────────────────────────────────────────────
+async function loadTree() {
+    document.getElementById('treeScroll').innerHTML = '<div class="loading">⏳ Betöltés…</div>';
+    document.getElementById('statBadge').textContent = 'betöltés…';
+    try {
+        const r = await fetch(API + '/cikktorzs/tree');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        allData = await r.json();
+        populateCatFilter();
+        renderTree();
+    } catch(e) {
+        document.getElementById('treeScroll').innerHTML =
+            `<div class="empty-state">
+                <div class="esc">⚠️</div>
+                <div>Szerver nem elérhető<br><small style="color:#555">${esc(e.message)}</small><br>
+                <small style="color:#444">Indítsd el a start.bat-ot</small></div>
+            </div>`;
+        document.getElementById('statBadge').textContent = 'offline';
+    }
+}
+
+// ── KATEGÓRIA SZŰRŐ ──────────────────────────────────────────
+function populateCatFilter() {
+    const sel = document.getElementById('catFilter');
+    const val = sel.value;
+    sel.innerHTML = '<option value="">— Minden kategória —</option>';
+    allData.categories.filter(c => !c.parent_id).forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.category_id;
+        o.textContent = c.name;
+        sel.appendChild(o);
+    });
+    sel.value = val;
+}
+
+// ── FA RENDERELÉS ─────────────────────────────────────────────
+function renderTree() {
+    const container = document.getElementById('treeScroll');
+    const filterCat = document.getElementById('catFilter').value;
+    const items = currentTab === 'termekek' ? allData.products : allData.activities;
+    const cats  = allData.categories;
+
+    // gyökér kategóriák
+    let rootCats = cats.filter(c => !c.parent_id);
+    if (filterCat) rootCats = rootCats.filter(c => c.category_id === filterCat);
+
+    if (!rootCats.length && !items.length) {
+        container.innerHTML = `<div class="empty-state">
+            <div class="esc">📭</div>
+            <div>Nincs adat<br><small style="color:#444">Tölts fel cikktörzs fájlt a jobb oldali panelen</small></div>
+        </div>`;
+        document.getElementById('statBadge').textContent = '0 tétel';
+        return;
+    }
+
+    // gyerek-kategóriák map
+    const childMap = {};
+    cats.forEach(c => {
+        const pid = c.parent_id || '_root';
+        (childMap[pid] = childMap[pid] || []).push(c);
+    });
+
+    // tételek map kategória szerint
+    const itemMap = {};
+    items.forEach(it => {
+        const cid = it.category_id || '_none';
+        (itemMap[cid] = itemMap[cid] || []).push(it);
+    });
+
+    function countIn(catId) {
+        let n = (itemMap[catId] || []).length;
+        (childMap[catId] || []).forEach(s => { n += countIn(s.category_id); });
+        return n;
+    }
+
+    function renderCat(cat, depth) {
+        const children = childMap[cat.category_id] || [];
+        const catItems = itemMap[cat.category_id] || [];
+        const total    = countIn(cat.category_id);
+        if (!total && !children.length) return '';
+        const pl = 16 + depth * 16;
+        let html = `
+            <div class="tree-cat">
+                <div class="cat-header" style="padding-left:${pl}px"
+                    onclick="toggleCat('${cat.category_id}')">
+                    <span class="cat-arrow" id="arr_${cat.category_id}">▶</span>
+                    <span>📁</span>
+                    <span class="cat-name">${esc(cat.name)}</span>
+                    <span class="cat-count">${total} tétel</span>
+                </div>
+                <div class="cat-children" id="ch_${cat.category_id}">`;
+        children.forEach(s => { html += renderCat(s, depth + 1); });
+        catItems.forEach(it => { html += renderItem(it, pl + 16); });
+        html += `</div></div>`;
+        return html;
+    }
+
+    function renderItem(it, indentPx) {
+        const id   = it.item_id || it.activity_id;
+        const icon = currentTab === 'termekek' ? '📦' : '⚙️';
+        const mfr  = it.manufacturer
+            ? `<span class="item-mfr" title="${esc(it.manufacturer)}">${esc(it.manufacturer)}</span>` : '';
+        const unit = `<span class="item-unit">${esc(it.unit || it.unit_type || '')}</span>`;
+
+        // dátum: ha van utolsó ár azt mutatjuk, ha nincs a létrehozási dátumot
+        const displayDate = it.last_price || it.created_at;
+        const dateClass   = dateColor(displayDate);
+        const dateTitle   = it.last_price
+            ? 'Utolsó ár: ' + fmtDate(it.last_price)
+            : 'Létrehozva: ' + fmtDate(it.created_at);
+        const dateLbl = `<span class="item-date ${dateClass}" title="${dateTitle}">${fmtDate(displayDate)}</span>`;
+
+        return `<div class="tree-item" data-id="${id}" style="padding-left:${indentPx}px"
+            onclick="selectItem('${id}')">
+            <span class="item-icon">${icon}</span>
+            <span class="item-name">${esc(it.name)}</span>
+            ${mfr}${unit}${dateLbl}
+        </div>`;
+    }
+
+    // kategória nélküli tételek
+    const nocat = (itemMap['_none'] || []).map(it => renderItem(it, 16)).join('');
+    let html = rootCats.map(c => renderCat(c, 0)).join('') + nocat;
+
+    if (!html.trim()) {
+        html = `<div class="empty-state"><div class="esc">📭</div><div>Nincs megjeleníthető adat</div></div>`;
+    }
+    container.innerHTML = html;
+    document.getElementById('statBadge').textContent =
+        `${items.length} ${currentTab === 'termekek' ? 'termék' : 'tevékenység'}`;
+}
+
+// ── FA INTERAKCIÓ ─────────────────────────────────────────────
+function toggleCat(catId) {
+    const ch = document.getElementById('ch_' + catId);
+    const ar = document.getElementById('arr_' + catId);
+    if (!ch) return;
+    const open = ch.classList.toggle('open');
+    if (ar) ar.classList.toggle('open', open);
+}
+function expandAll() {
+    document.querySelectorAll('.cat-children').forEach(el => el.classList.add('open'));
+    document.querySelectorAll('.cat-arrow').forEach(el => el.classList.add('open'));
+}
+function collapseAll() {
+    document.querySelectorAll('.cat-children').forEach(el => el.classList.remove('open'));
+    document.querySelectorAll('.cat-arrow').forEach(el => el.classList.remove('open'));
+}
+
+// ── TÉTEL KIJELÖLÉS ───────────────────────────────────────────
+function selectItem(id) {
+    document.querySelectorAll('.tree-item').forEach(el => {
+        el.classList.toggle('selected', el.dataset.id === id);
+    });
+    const items = currentTab === 'termekek' ? allData.products : allData.activities;
+    const it = items.find(x => (x.item_id || x.activity_id) === id);
+    if (!it) return;
+    const bar = document.getElementById('detailBar');
+    bar.innerHTML = [
+        `<span><span class="detail-key">Név: </span><span class="detail-val">${esc(it.name)}</span></span>`,
+        it.manufacturer ? `<span><span class="detail-key">Gyártó: </span><span class="detail-val">${esc(it.manufacturer)}</span></span>` : '',
+        `<span><span class="detail-key">Egység: </span><span class="detail-val">${esc(it.unit || it.unit_type || '—')}</span></span>`,
+        `<span><span class="detail-key">Létrehozva: </span><span class="detail-val">${fmtDate(it.created_at)}</span></span>`,
+        `<span><span class="detail-key">Utolsó ár: </span><span class="detail-val">${it.last_price ? fmtDate(it.last_price) : '—'}</span></span>`,
+    ].join('');
+    bar.classList.add('show');
+}
+
+// ── KERESÉS ───────────────────────────────────────────────────
+let _searchTimer = null;
+function onSearch(q) {
+    clearTimeout(_searchTimer);
+    if (q.length < 2) {
+        document.getElementById('searchResults').innerHTML = '<div class="search-hint">Írj legalább 2 karaktert</div>';
+        return;
+    }
+    _searchTimer = setTimeout(() => doSearch(q), 280);
+}
+
+async function doSearch(q) {
+    try {
+        const r = await fetch(`${API}/cikktorzs/search?q=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        if (!d.results || !d.results.length) {
+            document.getElementById('searchResults').innerHTML = '<div class="search-hint">Nincs találat</div>';
+            return;
+        }
+        document.getElementById('searchResults').innerHTML = d.results.map(it => `
+            <div class="sr-item" onclick="highlightItem('${it.item_id}', '${it.tipus}')">
+                <span>${it.tipus === 'termék' ? '📦' : '⚙️'}</span>
+                <span class="sr-name">${esc(it.name)}</span>
+                <span class="sr-badge ${it.tipus === 'termék' ? 'b-termek' : 'b-tevekenyseg'}">${it.tipus}</span>
+            </div>
+        `).join('');
+    } catch(e) {
+        document.getElementById('searchResults').innerHTML = '<div class="search-hint">Keresési hiba</div>';
+    }
+}
+
+function highlightItem(id, tipus) {
+    // tab váltás ha szükséges
+    const needTab = tipus === 'termék' ? 'termekek' : 'tevekenysgek';
+    if (currentTab !== needTab) { switchTab(needTab); }
+
+    // kiemelés + görgetés
+    setTimeout(() => {
+        selectItem(id);
+        const el = document.querySelector(`.tree-item[data-id="${id}"]`);
+        if (!el) return;
+        // szülő kategóriák kinyitása
+        let p = el.closest('.cat-children');
+        while (p) {
+            p.classList.add('open');
+            const cid = p.id.replace('ch_', '');
+            const ar = document.getElementById('arr_' + cid);
+            if (ar) ar.classList.add('open');
+            p = p.parentElement && p.parentElement.closest('.cat-children');
+        }
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+}
+
+// ── FELTÖLTÉS ─────────────────────────────────────────────────
+const ALLOWED_EXT = ['xlsx','xls','csv','pdf','docx','doc','html','htm','md'];
+
+function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('over');
+}
+function onDragLeave() {
+    document.getElementById('dropzone').classList.remove('over');
+}
+function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if (file) onFileSelect(file);
+}
+function onFileSelect(file) {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!ALLOWED_EXT.includes(ext)) {
+        toast('Nem támogatott: .' + ext + ' — xlsx, csv, pdf, docx, html, md', 'err');
+        return;
+    }
+    uploadFile(file);
+}
+async function uploadFile(file) {
+    toast(`📎 ${file.name} – feldolgozás…`, '');
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+        const r = await fetch(API + '/cikktorzs/upload', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) { toast(d.detail || 'Feldolgozási hiba', 'err'); return; }
+        if (!d.rows || !d.rows.length) {
+            toast('Nem sikerült sorokat kiolvasni a fájlból', 'warn'); return;
+        }
+        toast(`📄 ${d.count} sor beolvasva – ellenőrzés…`, 'ok');
+        openReview(d.rows, d.filename || file.name);
+    } catch(e) {
+        toast('Szerver offline – feltöltés sikertelen', 'err');
+    }
+}
+function openManualEntry() {
+    openReview([{ name: '', manufacturer: '', unit: '', category: '', _raw: true }], 'Kézi bevitel');
+}
+
+// ── REVIEW PANEL ──────────────────────────────────────────────
+let _revRows = [];
+let _tokensUsed = 0;
+
+function openReview(rawRows, filename) {
+    _tokensUsed = 0;
+    _revRows = rawRows.map(r => ({
+        name:         r.name         || '',
+        manufacturer: r.manufacturer || '',
+        unit:         r.unit         || '',
+        category:     r.category     || '',
+        status:       r._raw         ? 'raw' : 'new',
+        confidence:   1.0,
+        _skip:        false,
+    }));
+    document.getElementById('revTitle').textContent = `📄 ${filename}`;
+    document.getElementById('revSub').textContent   = `${_revRows.length} beolvasott sor – ellenőrizd és mentsd az adatbázisba`;
+    document.getElementById('tokBadge').style.display = 'none';
+    renderRevTable();
+    document.getElementById('revOverlay').classList.add('show');
+}
+
+function closeReview() {
+    document.getElementById('revOverlay').classList.remove('show');
+    document.getElementById('fileInput').value = '';
+}
+
+function renderRevTable() {
+    const tbody = document.getElementById('revBody');
+    tbody.innerHTML = _revRows.map((row, i) => {
+        const aiCls = row.status === 'ai' ? 'ai-ok' : (row.status === 'warn' ? 'ai-low' : '');
+        const trCls = row._skip ? 'skipped' : '';
+        return `<tr class="${trCls}" id="rev-row-${i}">
+            <td><input type="checkbox" class="rev-chk" data-i="${i}" ${!row._skip ? 'checked' : ''} onchange="toggleRow(${i},this.checked)"></td>
+            <td><input class="rev-inp ${aiCls}" id="rn-${i}" value="${esc(row.name)}"         oninput="setField(${i},'name',this.value)"         placeholder="Megnevezés…"></td>
+            <td><input class="rev-inp ${aiCls}" id="rm-${i}" value="${esc(row.manufacturer)}" oninput="setField(${i},'manufacturer',this.value)" placeholder="Gyártó"></td>
+            <td><input class="rev-inp"          id="ru-${i}" value="${esc(row.unit)}"          oninput="setField(${i},'unit',this.value)"         placeholder="db"></td>
+            <td><input class="rev-inp ${aiCls}" id="rc-${i}" value="${esc(row.category)}"      oninput="setField(${i},'category',this.value)"     placeholder="Kategória"></td>
+            <td id="rst-${i}">${stBadge(row.status, row.confidence)}</td>
+            <td style="white-space:nowrap">
+                <button class="btn-row-ai"   onclick="identifyRow(${i})">🤖</button>
+                <button class="btn-row-skip" onclick="skipRow(${i})">${row._skip ? '↩' : '✕'}</button>
+            </td>
+        </tr>`;
+    }).join('');
+    updateRevFooter();
+    updateSaveBtn();
+}
+
+function stBadge(status, conf) {
+    const map = {
+        new:  ['st-new',  '🟢 Kész'],
+        ai:   ['st-ai',   '🟣 AI'],
+        warn: ['st-warn', `⚠️ ${Math.round((conf||0)*100)}%`],
+        raw:  ['st-raw',  '🔴 Nyers'],
+    };
+    const [cls, lbl] = map[status] || ['st-raw','?'];
+    return `<span class="st ${cls}">${lbl}</span>`;
+}
+
+function setField(i, field, val) {
+    _revRows[i][field] = val;
+    if (_revRows[i].status === 'raw' && val.trim()) _revRows[i].status = 'new';
+    updateRevFooter(); updateSaveBtn();
+}
+
+function toggleRow(i, checked) {
+    _revRows[i]._skip = !checked;
+    const tr = document.getElementById('rev-row-' + i);
+    if (tr) tr.classList.toggle('skipped', !checked);
+    updateRevFooter(); updateSaveBtn();
+}
+
+function skipRow(i) {
+    const row = _revRows[i];
+    row._skip = !row._skip;
+    const chk = document.querySelector(`.rev-chk[data-i="${i}"]`);
+    if (chk) chk.checked = !row._skip;
+    const tr = document.getElementById('rev-row-' + i);
+    if (tr) {
+        tr.classList.toggle('skipped', row._skip);
+        const btn = tr.querySelector('.btn-row-skip');
+        if (btn) btn.textContent = row._skip ? '↩' : '✕';
+    }
+    updateRevFooter(); updateSaveBtn();
+}
+
+function toggleAll(checked) {
+    _revRows.forEach((r, i) => {
+        r._skip = !checked;
+        const tr = document.getElementById('rev-row-' + i);
+        if (tr) tr.classList.toggle('skipped', !checked);
+        const chk = document.querySelector(`.rev-chk[data-i="${i}"]`);
+        if (chk) chk.checked = checked;
+    });
+    updateRevFooter(); updateSaveBtn();
+}
+
+function acceptAllGreen() {
+    _revRows.forEach(r => { if (r.name.trim()) r._skip = false; });
+    updateRevFooter(); updateSaveBtn();
+    toast('Minden kitöltött sor elfogadva', 'ok');
+}
+
+function updateRevFooter() {
+    const c = { new:0, ai:0, warn:0, raw:0, skip:0 };
+    _revRows.forEach(r => { if (r._skip) c.skip++; else c[r.status] = (c[r.status]||0)+1; });
+    document.getElementById('fTotal').textContent = _revRows.length;
+    document.getElementById('fGreen').textContent = c.new;
+    document.getElementById('fAi').textContent    = c.ai;
+    document.getElementById('fWarn').textContent  = c.warn;
+    document.getElementById('fRaw').textContent   = c.raw;
+    document.getElementById('fSkip').textContent  = c.skip;
+}
+
+function updateSaveBtn() {
+    const ready = _revRows.filter(r => !r._skip && r.name.trim()).length;
+    const btn = document.getElementById('btnSave');
+    btn.disabled = ready === 0;
+    btn.textContent = ready ? `💾 Mentés DB-be (${ready} sor)` : '💾 Mentés DB-be';
+}
+
+// ── AI AZONOSÍTÁS ─────────────────────────────────────────────
+async function identifyRow(i) {
+    await _callIdentify([i], [_revRows[i].name || '?']);
+}
+
+async function identifyAll() {
+    const idxs = [], texts = [];
+    _revRows.forEach((r, i) => {
+        if (!r._skip && (r.status === 'raw' || r.status === 'warn' || !r.manufacturer)) {
+            idxs.push(i); texts.push(r.name || '?');
+        }
+    });
+    if (!idxs.length) { toast('Nincs feldolgozandó sor', 'warn'); return; }
+    await _callIdentify(idxs, texts);
+}
+
+async function _callIdentify(idxs, texts) {
+    const prog   = document.getElementById('aiProgress');
+    const btnAll = document.getElementById('btnAiAll');
+    prog.classList.add('show');
+    btnAll.disabled = true;
+    idxs.forEach(i => {
+        const btn = document.querySelector(`#rev-row-${i} .btn-row-ai`);
+        if (btn) btn.disabled = true;
+    });
+    try {
+        const r = await fetch(API + '/cikktorzs/identify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: texts })
+        });
+        const d = await r.json();
+        if (!r.ok) { toast(d.detail || 'AI hiba', 'err'); return; }
+
+        _tokensUsed += d.tokens_used || 0;
+        const tb = document.getElementById('tokBadge');
+        tb.textContent = `${_tokensUsed.toLocaleString()} token`;
+        tb.style.display = '';
+
+        (d.results || []).forEach(res => {
+            const li = res.index - 1;
+            if (li < 0 || li >= idxs.length) return;
+            const ri  = idxs[li];
+            const row = _revRows[ri];
+            const conf = res.confidence ?? 0;
+            if (res.name)         row.name         = res.name;
+            if (res.manufacturer) row.manufacturer = res.manufacturer;
+            if (res.unit)         row.unit         = res.unit;
+            if (res.category)     row.category     = res.category;
+            row.confidence = conf;
+            row.status     = conf >= 0.7 ? 'ai' : 'warn';
+
+            const aiCls = row.status === 'ai' ? 'ai-ok' : 'ai-low';
+            const setI = (pfx, val) => { const el = document.getElementById(`r${pfx}-${ri}`); if (el) { el.value = val; el.className = 'rev-inp ' + aiCls; } };
+            setI('n', row.name); setI('m', row.manufacturer); setI('u', row.unit); setI('c', row.category);
+            const stCell = document.getElementById(`rst-${ri}`);
+            if (stCell) stCell.innerHTML = stBadge(row.status, conf);
+        });
+
+        updateRevFooter(); updateSaveBtn();
+        toast(`✅ AI kész – ${d.results?.length || 0} sor azonosítva`, 'ok');
+    } catch(e) {
+        toast('AI hiba: ' + e.message, 'err');
+    } finally {
+        prog.classList.remove('show');
+        btnAll.disabled = false;
+        idxs.forEach(i => {
+            const btn = document.querySelector(`#rev-row-${i} .btn-row-ai`);
+            if (btn) btn.disabled = false;
+        });
+    }
+}
+
+// ── MENTÉS ────────────────────────────────────────────────────
+async function saveRows() {
+    const items = _revRows
+        .filter(r => !r._skip && r.name.trim())
+        .map(r => ({ name: r.name, manufacturer: r.manufacturer, unit: r.unit, category: r.category }));
+    if (!items.length) { toast('Nincs menthető sor', 'warn'); return; }
+
+    document.getElementById('btnSave').disabled = true;
+    try {
+        const r = await fetch(API + '/cikktorzs/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items, tipus: currentTab === 'termekek' ? 'termek' : 'tevekenyseg' })
+        });
+        const d = await r.json();
+        if (!r.ok) { toast(d.detail || 'Mentési hiba', 'err'); return; }
+        toast(`✅ ${d.saved} tétel elmentve${d.errors?.length ? ' – '+d.errors.length+' hiba' : ''}`, 'ok');
+        closeReview();
+        loadTree();
+    } catch(e) {
+        toast('Mentési hiba: ' + e.message, 'err');
+    } finally {
+        updateSaveBtn();
+    }
+}
+
+// ── SEGÉDFÜGGVÉNYEK ───────────────────────────────────────────
+function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(dt) {
+    if (!dt) return '—';
+    const d = new Date(dt);
+    if (isNaN(d)) return String(dt).slice(0, 10);
+    return d.toLocaleDateString('hu-HU', { year: '2-digit', month: '2-digit', day: '2-digit' });
+}
+function dateColor(dt) {
+    if (!dt) return 'none';
+    const days = (Date.now() - new Date(dt)) / 86400000;
+    if (days < 30)  return 'fresh';
+    if (days < 180) return 'stale';
+    return 'old';
+}
+let _toastTimer;
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── INDÍTÁS ───────────────────────────────────────────────────
+loadTree();
+</script>
+</body>
+</html>
