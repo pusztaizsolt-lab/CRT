@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CRT Ajánlatsegéd – Kezelői Kézikönyv v1.0</title>
+<style>
+:root{
+  --bg:#0d0d14;--card:#16161f;--card2:#1a1a2e;--border:#2a2a3e;
+  --accent:#7c6af7;--accent2:#3d3478;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+  --text:#e8e8f0;--dim:#9898b8;--muted:#5a5a7a;--code:#0a0a14;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14px;line-height:1.65;}
+nav{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;padding:1rem 0;}
+.nav-head{padding:.6rem 1rem 1rem;border-bottom:1px solid var(--border);margin-bottom:.5rem;}
+.nav-head h2{font-size:.88rem;font-weight:800;color:var(--accent);}
+.nav-head p{font-size:.7rem;color:var(--muted);margin-top:.2rem;}
+.nav-badge{display:inline-block;background:var(--accent2);color:var(--accent);font-size:.62rem;font-weight:700;padding:.12rem .45rem;border-radius:99px;margin-top:.3rem;}
+nav a{display:flex;align-items:center;gap:.45rem;padding:.38rem 1rem;font-size:.78rem;color:var(--dim);text-decoration:none;border-left:3px solid transparent;transition:all .15s;}
+nav a:hover{background:rgba(255,255,255,.04);color:var(--text);}
+nav a.active{border-left-color:var(--accent);color:var(--text);background:rgba(124,106,247,.08);}
+.nav-sep{height:1px;background:var(--border);margin:.4rem .8rem;}
+.nav-sec{font-size:.63rem;font-weight:700;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;padding:.6rem 1rem .1rem;}
+main{flex:1;max-width:860px;padding:2rem 2.5rem;overflow:hidden;}
+.cover{text-align:center;padding:2.5rem 0 3rem;border-bottom:1px solid var(--border);margin-bottom:2.5rem;}
+.cover-icon{display:inline-flex;align-items:center;justify-content:center;width:72px;height:72px;background:linear-gradient(135deg,var(--accent2),var(--accent));border-radius:18px;font-size:2.2rem;margin-bottom:1.2rem;box-shadow:0 8px 24px rgba(124,106,247,.35);}
+.cover h1{font-size:2rem;font-weight:900;letter-spacing:-.02em;}
+.cover h1 span{color:var(--accent);}
+.cover .sub{color:var(--dim);margin-top:.4rem;font-size:.92rem;}
+.cover .roles{display:flex;gap:.6rem;justify-content:center;margin-top:1rem;flex-wrap:wrap;}
+.role-chip{padding:.28rem .8rem;border-radius:99px;font-size:.76rem;font-weight:700;}
+.role-admin{background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#e74c3c;}
+.role-user{background:rgba(124,106,247,.12);border:1px solid rgba(124,106,247,.3);color:var(--accent);}
+section{margin-bottom:3rem;scroll-margin-top:1.5rem;}
+h2{font-size:1.2rem;font-weight:800;margin-bottom:1rem;padding-bottom:.45rem;border-bottom:2px solid var(--accent);display:flex;align-items:center;gap:.55rem;}
+h2 .n{background:var(--accent);color:#fff;font-size:.68rem;font-weight:800;padding:.18rem .48rem;border-radius:6px;letter-spacing:.04em;}
+h3{font-size:.95rem;font-weight:700;color:var(--done);margin:1.4rem 0 .5rem;}
+h4{font-size:.85rem;font-weight:700;color:var(--warn);margin:1rem 0 .4rem;}
+p{color:var(--dim);margin-bottom:.7rem;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;margin-bottom:.9rem;}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem;margin-bottom:.9rem;}
+.feat{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:.9rem 1rem;transition:border-color .2s;}
+.feat:hover{border-color:var(--accent);}
+.feat .ico{font-size:1.3rem;margin-bottom:.3rem;}
+.feat .t{font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:.2rem;}
+.feat .d{font-size:.73rem;color:var(--dim);line-height:1.4;}
+table{width:100%;border-collapse:collapse;font-size:.81rem;margin-bottom:.9rem;}
+thead th{background:var(--card2);color:var(--accent);font-weight:700;padding:.55rem .8rem;text-align:left;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;border-bottom:2px solid var(--accent2);}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.04);}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+tbody td{padding:.5rem .8rem;color:var(--dim);vertical-align:top;}
+tbody td:first-child{color:var(--text);font-weight:600;}
+pre{background:var(--code);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:.9rem 1.1rem;overflow-x:auto;font-size:.79rem;font-family:Consolas,monospace;color:var(--done);line-height:1.7;margin-bottom:.9rem;}
+code{font-family:Consolas,monospace;font-size:.83em;color:var(--accent);background:rgba(124,106,247,.12);padding:.1em .32em;border-radius:4px;}
+.badge{display:inline-block;padding:.12rem .45rem;border-radius:99px;font-size:.67rem;font-weight:700;}
+.b-done{background:rgba(62,207,142,.12);color:var(--done);border:1px solid rgba(62,207,142,.25);}
+.b-warn{background:rgba(245,166,35,.12);color:var(--warn);}
+.b-err{background:rgba(231,76,60,.12);color:var(--err);}
+.b-info{background:rgba(124,106,247,.15);color:var(--accent);}
+.b-admin{background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.25);}
+.flow{display:flex;flex-direction:column;gap:0;margin:1rem 0;}
+.flow-step{display:flex;align-items:flex-start;gap:.8rem;position:relative;}
+.flow-step::before{content:'';position:absolute;left:16px;top:34px;bottom:-20px;width:2px;background:var(--border);}
+.flow-step:last-child::before{display:none;}
+.flow-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex-shrink:0;margin-bottom:20px;}
+.flow-body{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:.7rem .9rem;flex:1;margin-bottom:20px;font-size:.82rem;color:var(--dim);}
+.flow-body strong{color:var(--text);}
+.tip-box{background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-size:.8rem;color:var(--warn);}
+.tip-box b{color:var(--warn);}
+.err-box{background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.25);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-size:.8rem;color:var(--err);}
+.ok-box{background:rgba(62,207,142,.06);border:1px solid rgba(62,207,142,.25);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-size:.8rem;color:var(--done);}
+.stat-row{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1rem;}
+.stat{flex:1;min-width:90px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:.9rem;text-align:center;}
+.stat-val{font-size:1.6rem;font-weight:900;color:var(--accent);}
+.stat-lbl{font-size:.68rem;color:var(--muted);margin-top:.15rem;}
+.qs{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;margin-bottom:.7rem;}
+.qs .q{font-size:.83rem;font-weight:700;color:var(--text);margin-bottom:.3rem;}
+.qs .a{font-size:.8rem;color:var(--dim);}
+ul,ol{color:var(--dim);padding-left:1.4rem;margin-bottom:.7rem;}
+li{margin-bottom:.25rem;line-height:1.55;}
+@media(max-width:720px){nav{display:none;}main{padding:1.2rem;}}
+@media print{nav{display:none;}main{max-width:100%;padding:.5rem;}}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="nav-head">
+    <h2>CRT Kézikönyv</h2>
+    <p>Admin &amp; Kezelői útmutató</p>
+    <span class="nav-badge">v1.0 · 2026-06-10</span>
+  </div>
+  <a href="#cover">🏠 Fedőlap</a>
+  <div class="nav-sep"></div>
+  <div class="nav-sec">Alapok</div>
+  <a href="#s1">1. Rendszer áttekintés</a>
+  <a href="#s2">2. Indítás / leállítás</a>
+  <a href="#s3">3. Belépés (PIN + 2FA)</a>
+  <a href="#s4">4. Főmenü</a>
+  <div class="nav-sep"></div>
+  <div class="nav-sec">Kezelő funkciók</div>
+  <a href="#s5">5. Cikktörzs</a>
+  <a href="#s6">6. Ajánlatkészítés</a>
+  <a href="#s7">7. Árkezelés</a>
+  <a href="#s8">8. Webes árfigyelés</a>
+  <a href="#s9">9. AI funkciók</a>
+  <a href="#s10">10. LoRA finomhangolás</a>
+  <div class="nav-sep"></div>
+  <div class="nav-sec">Admin funkciók</div>
+  <a href="#s11">11. Beállítások</a>
+  <a href="#s12">12. Admin konzol</a>
+  <a href="#s13">13. Naplók / audit</a>
+  <a href="#s14">14. Backup</a>
+  <div class="nav-sep"></div>
+  <a href="#s15">15. Hibaelhárítás</a>
+  <a href="#s16">16. Telepítés &amp; iOS</a>
+</nav>
+
+<main>
+
+<!-- FEDŐLAP -->
+<div class="cover" id="cover">
+  <div class="cover-icon">📖</div>
+  <h1>CRT <span>Kézikönyv</span></h1>
+  <p class="sub">Civil Rendszertechnika Kft. · Kezelői és Admin útmutató</p>
+  <div class="roles">
+    <span class="role-chip role-admin">👑 Admin</span>
+    <span class="role-chip role-user">👤 Kezelő</span>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat"><div class="stat-val">16</div><div class="stat-lbl">Fejezet</div></div>
+  <div class="stat"><div class="stat-val">10</div><div class="stat-lbl">Funkció oldal</div></div>
+  <div class="stat"><div class="stat-val">2</div><div class="stat-lbl">Szerepkör</div></div>
+  <div class="stat"><div class="stat-val">v1.0</div><div class="stat-lbl">Rendszer verzió</div></div>
+</div>
+
+<!-- 1 -->
+<section id="s1">
+  <h2><span class="n">01</span> Rendszer áttekintés</h2>
+  <p>A <strong style="color:var(--text)">CRT Ajánlatsegéd</strong> a Civil Rendszertechnika Kft. belső, helyi AI alapú ajánlatkészítő rendszere. Az összes adat a céges gépen marad.</p>
+  <div class="card-grid">
+    <div class="feat"><div class="ico">🤖</div><div class="t">AI azonosítás</div><div class="d">Dokumentumból automatikusan azonosítja az ajánlat tételeket</div></div>
+    <div class="feat"><div class="ico">💰</div><div class="t">Árfigyelés</div><div class="d">Automatikus web scraping + kézi bevitel, forrás tracking</div></div>
+    <div class="feat"><div class="ico">📄</div><div class="t">Ajánlatkészítés</div><div class="d">3 mód, cellajelzők, xlsx/docx/PDF export</div></div>
+    <div class="feat"><div class="ico">🦙</div><div class="t">Helyi LLM</div><div class="d">Ollama – internet nélkül is működik</div></div>
+    <div class="feat"><div class="ico">🧠</div><div class="t">LoRA tréning</div><div class="d">Saját példákból finomhangolt CRT-specifikus AI modell</div></div>
+    <div class="feat"><div class="ico">🖼</div><div class="t">Rajzelemzés</div><div class="d">Tervrajz/fotó – termékek automatikus felismerése</div></div>
+  </div>
+  <h3>Szerepkörök</h3>
+  <table>
+    <thead><tr><th>Szerepkör</th><th>Jogosultságok</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-admin">admin</span></td><td>Minden funkció + felhasználókezelés + rendszer konfig + backup</td></tr>
+      <tr><td><span class="badge b-info">user</span></td><td>Cikktörzs, ajánlatkészítés, árkezelés, AI, LoRA</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 2 -->
+<section id="s2">
+  <h2><span class="n">02</span> Indítás és leállítás</h2>
+  <table>
+    <thead><tr><th>Parancs</th><th>Leírás</th></tr></thead>
+    <tbody>
+      <tr><td><code>start.bat</code></td><td>Összes szolgáltatás indítása (DB, backend, Ollama, ChromaDB)</td></tr>
+      <tr><td><code>stop.bat</code></td><td>Graceful leállítás</td></tr>
+      <tr><td><code>status.bat</code></td><td>Futó szolgáltatások ellenőrzése</td></tr>
+    </tbody>
+  </table>
+  <div class="ok-box">Indítás után megnyílik: <code>http://localhost</code> (Nginx) vagy <code>ui/login.html</code></div>
+  <p>Az élő rendszerállapot bármikor megtekinthető: <code>ui/widget.html</code> — beágyazható második monitorra.</p>
+</section>
+
+<!-- 3 -->
+<section id="s3">
+  <h2><span class="n">03</span> Belépés (PIN + 2FA)</h2>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">1</div>
+      <div class="flow-body"><strong>Felhasználónév + PIN megadása</strong><br>6 jegyű numerikus PIN a cellákba. Kattints: <strong>Belépés</strong></div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num" style="background:rgba(62,207,142,.2);color:var(--done)">2</div>
+      <div class="flow-body"><strong>OTP kód emailben</strong><br>6 jegyű egyszeri kód érkezik a regisztrált email-re (10 perc érvényes). Add meg, kattints: <strong>Ellenőrzés</strong></div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num" style="background:rgba(245,166,35,.2);color:var(--warn)">3</div>
+      <div class="flow-body"><strong>Belépve → Főmenü</strong><br>A JWT token 8 óráig érvényes. Kilépés után új PIN + OTP szükséges.</div>
+    </div>
+  </div>
+  <div class="tip-box"><b>Brute force védelem:</b> 4 hibás PIN kísérlet → 30 perces automatikus zárolás. Feloldás: Admin konzol → felhasználó → Feloldás.</div>
+  <div class="tip-box"><b>Téma:</b> A belépési oldalon 4 szín téma választható — az összes oldalon érvényes.</div>
+</section>
+
+<!-- 4 -->
+<section id="s4">
+  <h2><span class="n">04</span> Főmenü</h2>
+  <table>
+    <thead><tr><th>Kártya</th><th>Oldal</th><th>Funkció</th></tr></thead>
+    <tbody>
+      <tr><td>📦 Cikktörzs</td><td><code>cikktorzs.html</code></td><td>Termékek és tevékenységek kezelése</td></tr>
+      <tr><td>📋 Ajánlatkészítő</td><td><code>ajanlatkezelo.html</code></td><td>Ajánlatok létrehozása, exportálása</td></tr>
+      <tr><td>💰 Árak</td><td><code>arak.html</code></td><td>Árlisták, kézi ár bevitel</td></tr>
+      <tr><td>🌐 Webes árak</td><td><code>webes_arak.html</code></td><td>Automatikus árfigyelés</td></tr>
+      <tr><td>⚙️ Beállítások</td><td><code>beallitasok.html</code></td><td>Rendszer konfiguráció</td></tr>
+      <tr><td>👤 Admin <span class="badge b-admin">admin</span></td><td><code>admin.html</code></td><td>Felhasználókezelés</td></tr>
+      <tr><td>📋 Naplók</td><td><code>naplok.html</code></td><td>Audit napló</td></tr>
+      <tr><td>🖼 Rajzelemző</td><td><code>rajz_elemzo.html</code></td><td>Tervrajz/fotó AI elemzés</td></tr>
+      <tr><td>🧠 LoRA</td><td><code>lora.html</code></td><td>AI finomhangolás</td></tr>
+      <tr><td>📊 Diagnosztika</td><td><code>kezelőpult_v2.html</code></td><td>Rendszerállapot</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 5 -->
+<section id="s5">
+  <h2><span class="n">05</span> Cikktörzs kezelés</h2>
+  <p>A CRT összes ismert terméke és tevékenysége — az AI innen azonosítja az ajánlat tételeket.</p>
+  <h3>Fájl feltöltés és AI azonosítás</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">1</div><div class="flow-body">Cikktörzs → <strong>Fájl feltöltés</strong> → ajánlatkérő dokumentum (xlsx, csv, pdf, docx, html, md)</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">2</div><div class="flow-body">Sorok kinyerve (OCR-rel is ha szükséges) → <strong>AI azonosítás</strong></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">3</div><div class="flow-body">Eredmények ellenőrzése → <strong>Jóváhagy / Mindent elfogad</strong></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(62,207,142,.2);color:var(--done)">4</div><div class="flow-body">Tételek mentve a cikktörzsbe + tanítóadat-adatbázisba</div></div>
+  </div>
+  <h3>Cellaállapot jelzők</h3>
+  <table>
+    <thead><tr><th>Jelző</th><th>Jelentés</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-done">🟢 Zöld</span></td><td>AI bizonyosan azonosított (&gt;70%)</td></tr>
+      <tr><td><span class="badge b-warn">🟡 Sárga</span></td><td>Bizonytalan (50–70%) — ellenőrizd manuálisan</td></tr>
+      <tr><td><span class="badge b-err">🔴 Piros</span></td><td>Nem azonosított (&lt;50%) — kézi kitöltés szükséges</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 6 -->
+<section id="s6">
+  <h2><span class="n">06</span> Ajánlatkészítés</h2>
+  <h3>Három indítási mód</h3>
+  <table>
+    <thead><tr><th>Mód</th><th>Leírás</th><th>Mikor</th></tr></thead>
+    <tbody>
+      <tr><td>Üres ajánlat</td><td>Új, üres ajánlat</td><td>Kézzel viszed fel a tételeket</td></tr>
+      <tr><td>Fájlból</td><td>Feltölt + AI azonosít</td><td>Megkaptad az ajánlatkérőt fájlban</td></tr>
+      <tr><td>Korábbi alapján</td><td>Meglévő ajánlatból másolás</td><td>Visszatérő projekt, hasonló igény</td></tr>
+    </tbody>
+  </table>
+  <h3>Export formátumok</h3>
+  <table>
+    <thead><tr><th>Formátum</th><th>Leírás</th></tr></thead>
+    <tbody>
+      <tr><td><code>xlsx</code></td><td>Excel, szerkeszthető, CRT fejléc</td></tr>
+      <tr><td><code>docx</code></td><td>Word, szerkeszthető, céglogóval, aláírás sorral</td></tr>
+      <tr><td><code>PDF</code></td><td>Végleges, A4, sötét témával, összesítő sorral</td></tr>
+    </tbody>
+  </table>
+  <div class="err-box"><b>Figyelem:</b> A Törlés gomb visszafordíthatatlan — v1.0-ban nincs kukó funkció!</div>
+</section>
+
+<!-- 7 -->
+<section id="s7">
+  <h2><span class="n">07</span> Árkezelés</h2>
+  <p>Az <code>arak.html</code> oldalon az összes ismert ár megtekinthető forrással és időbélyeggel.</p>
+  <h3>Kor jelzők</h3>
+  <table>
+    <thead><tr><th>Jelző</th><th>Kor</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-done">🟢 Friss</span></td><td>30 napnál fiatalabb</td></tr>
+      <tr><td><span class="badge b-warn">🟡 Régi</span></td><td>30–90 nap</td></tr>
+      <tr><td><span class="badge b-err">🔴 Elavult</span></td><td>90 nap+</td></tr>
+    </tbody>
+  </table>
+  <p>Az elavultság küszöb: Beállítások → Webes árak → Max. áradat kora.</p>
+  <h3>Kézi ár bevitel</h3>
+  <ol><li>Kattints: <strong>+ Új ár</strong></li><li>Add meg: termék, ár, típus (lista/kisker/nagyker/egyedi), forrás neve</li><li>Mentés → azonnal elérhető az ajánlatkészítőben</li></ol>
+</section>
+
+<!-- 8 -->
+<section id="s8">
+  <h2><span class="n">08</span> Webes árfigyelés</h2>
+  <p>Playwright alapú automatikus web scraper — szállítói weboldalakról gyűjt árakat.</p>
+  <h3>Forrás + script beállítás</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">1</div><div class="flow-body">Webes árak → <strong>+ Új forrás</strong> → forrás neve, URL, típus → Ping teszt</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">2</div><div class="flow-body"><strong>Script szerkesztés</strong> → lépések rögzítése (navigate / find / type / click / extract)</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">3</div><div class="flow-body"><strong>Teszt futtatás</strong> → egy termékre kipróbálja</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(62,207,142,.2);color:var(--done)">4</div><div class="flow-body"><strong>Aktiválás</strong> → az ütemezett futtatásokba bekerül</div></div>
+  </div>
+  <div class="tip-box"><b>Ütemezés:</b> Beállítások → Webes árak → Scrape intervallum (alapért. 24 óra). Azonnali futtatás is elérhető.</div>
+</section>
+
+<!-- 9 -->
+<section id="s9">
+  <h2><span class="n">09</span> AI funkciók</h2>
+  <h3>AI prioritási lánc</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num" style="background:rgba(124,106,247,.2);color:var(--accent)">1</div><div class="flow-body"><strong>Claude API</strong> — legpontosabb, felhős, API kulcs szükséges</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(62,207,142,.2);color:var(--done)">2</div><div class="flow-body"><strong>LoRA fine-tuned</strong> — CRT-specifikus, helyi, csak ha aktiválva van</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(245,166,35,.2);color:var(--warn)">3</div><div class="flow-body"><strong>Ollama helyi LLM</strong> — általános, internet nélkül is működik</div></div>
+  </div>
+  <h3>Rajzelemző</h3>
+  <ol>
+    <li>Rajzelemző oldal → drag&amp;drop tervrajz / fotó (jpg, png, pdf)</li>
+    <li>Kattints: <strong>Elemzés</strong> → LLaVA Vision azonosítja a termékeket</li>
+    <li>Eredmény kártyák → kattintással bekerülhetnek az ajánlatba</li>
+    <li>CSV export az azonosított tételekről</li>
+  </ol>
+</section>
+
+<!-- 10 -->
+<section id="s10">
+  <h2><span class="n">10</span> LoRA finomhangolás</h2>
+  <p>Saját jóváhagyott példákból betanított AI modell — egyre jobban ismeri a CRT termékeket.</p>
+  <h3>Tréning indítása</h3>
+  <div class="tip-box"><b>Minimum 10 jóváhagyott példa szükséges</b> (ajánlatkészítőből „Mindent elfogad").</div>
+  <table>
+    <thead><tr><th>Fázis</th><th>Leírás</th><th>Időtartam</th></tr></thead>
+    <tbody>
+      <tr><td>Modell betöltés</td><td>Alapmodell letöltése/betöltése</td><td>1–5 perc</td></tr>
+      <tr><td>Tréning</td><td>Tényleges tanítás</td><td>GPU: ~30 perc / CPU: ~2–4 óra</td></tr>
+      <tr><td>Kész</td><td>Adapter mentve, aktiválható</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <h3>Aktiválás</h3>
+  <p>Tréning befejezése után → <strong>Aktiválás</strong> gomb. Az AI pipeline 2. helyre kerül (Claude után).</p>
+  <div class="ok-box">A tréning futása közben a rendszer többi funkciója (ajánlatkészítés, árak) elérhető marad.</div>
+</section>
+
+<!-- 11 -->
+<section id="s11">
+  <h2><span class="n">11</span> Beállítások</h2>
+  <h3>SMTP – Email (2FA kódokhoz)</h3>
+  <table>
+    <thead><tr><th>Mező</th><th>Gmail példa</th></tr></thead>
+    <tbody>
+      <tr><td>Host</td><td><code>smtp.gmail.com</code></td></tr>
+      <tr><td>Port</td><td><code>587</code></td></tr>
+      <tr><td>Jelszó</td><td>App Password (nem a rendes jelszó!)</td></tr>
+      <tr><td>STARTTLS</td><td>Bekapcsolva</td></tr>
+    </tbody>
+  </table>
+  <div class="tip-box"><b>Gmail App Password létrehozás:</b> Google Fiók → Biztonság → 2-lépéses hitelesítés → Alkalmazásjelszavak</div>
+  <h3>Fontosabb paraméterek</h3>
+  <table>
+    <thead><tr><th>Paraméter</th><th>Alapértelmezett</th><th>Leírás</th></tr></thead>
+    <tbody>
+      <tr><td>AI biztos határ</td><td>70%</td><td>E felett zöld jelző az azonosításnál</td></tr>
+      <tr><td>AI bizonytalan határ</td><td>50%</td><td>E alatt piros jelző</td></tr>
+      <tr><td>Scrape intervallum</td><td>24 óra</td><td>Automatikus árfrissítés gyakorisága</td></tr>
+      <tr><td>Max. ár-kor</td><td>30 nap</td><td>Ennél régebbi ár sárga jelzőt kap</td></tr>
+      <tr><td>Ajánlat érvényessége</td><td>30 nap</td><td>PDF/docx fejlécbe kerül</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 12 -->
+<section id="s12">
+  <h2><span class="n">12</span> Admin konzol <span class="badge b-admin">admin</span></h2>
+  <h3>Új felhasználó létrehozása</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num" style="background:rgba(231,76,60,.2);color:#e74c3c">1</div><div class="flow-body">Admin konzol → <strong>+ Új felhasználó</strong></div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(231,76,60,.2);color:#e74c3c">2</div><div class="flow-body">Add meg: felhasználónév, 6 jegyű PIN, <strong>email cím</strong> (kötelező!), szerepkör</div></div>
+    <div class="flow-step"><div class="flow-num" style="background:rgba(62,207,142,.2);color:var(--done)">3</div><div class="flow-body">Létrehozás → azonnal beléphet az OTP kóddal</div></div>
+  </div>
+  <div class="err-box"><b>Email kötelező!</b> Nélküle az OTP csak a szerver logba kerül — a 2FA védelme elvész.</div>
+  <h3>Felhasználó kezelése</h3>
+  <table>
+    <thead><tr><th>Művelet</th><th>Mikor</th></tr></thead>
+    <tbody>
+      <tr><td>PIN reset</td><td>Felhasználó elfelejtette a PIN-t</td></tr>
+      <tr><td>Feloldás</td><td>Brute force zárolás után</td></tr>
+      <tr><td>Inaktiválás</td><td>Ideiglenesen letiltás (adatok megmaradnak)</td></tr>
+      <tr><td>Törlés</td><td>Végleges — visszafordíthatatlan!</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 13 -->
+<section id="s13">
+  <h2><span class="n">13</span> Naplók és audit</h2>
+  <p>Minden esemény rögzítve: belépés, módosítás, törlés, backup, biztonsági fenyegetés.</p>
+  <table>
+    <thead><tr><th>Esemény típus</th><th>Leírás</th></tr></thead>
+    <tbody>
+      <tr><td><code>login</code></td><td>Sikeres belépés (IP-vel)</td></tr>
+      <tr><td><code>create</code></td><td>Új rekord létrehozása</td></tr>
+      <tr><td><code>update</code></td><td>Rekord módosítása</td></tr>
+      <tr><td><code>delete</code></td><td>Rekord törlése</td></tr>
+      <tr><td><code>backup</code></td><td>Adatbázis export</td></tr>
+      <tr><td><code>security_threat</code></td><td>SQL injection / XSS / path traversal kísérlet blokkolva</td></tr>
+    </tbody>
+  </table>
+  <p>CSV export, szűrők (dátum, felhasználó, eseménytípus), auto-refresh 30 mp-enként.</p>
+</section>
+
+<!-- 14 -->
+<section id="s14">
+  <h2><span class="n">14</span> Backup és visszaállítás <span class="badge b-admin">admin</span></h2>
+  <h3>Manuális backup</h3>
+  <ol>
+    <li>Beállítások → Backup → <strong>📥 Export indítása</strong></li>
+    <li>Fájl: <code>db_data\backups\backup_YYYYMMDD_HHMMSS.json</code></li>
+    <li><strong>Másold el manuálisan!</strong> — ez a mappa ki van zárva a Google Drive szinkronból</li>
+  </ol>
+  <h3>Visszaállítás</h3>
+  <div class="err-box"><b>⚠ Figyelem:</b> A visszaállítás az aktuális adatot FELÜLÍRJA! Előtte mindig készíts új backupot!</div>
+  <ol>
+    <li>Beállítások → Backup → Visszaállítás</li>
+    <li>Add meg a backup fájl elérési útját</li>
+    <li>Kattints: <strong>♻️ Visszaállítás</strong></li>
+  </ol>
+  <h3>Google Drive kizárási lista</h3>
+  <table>
+    <thead><tr><th>Mappa</th><th>Miért?</th></tr></thead>
+    <tbody>
+      <tr><td><code>db_data\</code></td><td>PostgreSQL adatfájlok — szinkron közben sérülhet</td></tr>
+      <tr><td><code>models\</code></td><td>LLM modellek (~14 GB) — felesleges</td></tr>
+      <tr><td><code>wsl\</code></td><td>WSL2 image (~1.2 GB) — felesleges</td></tr>
+      <tr><td><code>.env</code></td><td>Titkos kulcsok — SOHA ne szinkronizáld!</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 15 -->
+<section id="s15">
+  <h2><span class="n">15</span> Hibaelhárítás</h2>
+
+  <div class="qs">
+    <div class="q">A belépési oldal nem tölt be / "Szerver nem elérhető"</div>
+    <div class="a">→ <code>status.bat</code> → fut-e a backend? → Ha nem: <code>start.bat</code>, várj 30 mp-et → <code>http://localhost:8000/health</code></div>
+  </div>
+  <div class="qs">
+    <div class="q">Az OTP kód nem érkezett meg</div>
+    <div class="a">→ Spam mappa ellenőrzése → Beállítások → SMTP → Teszt küldés → Ha nincs SMTP: kód a szerver logban (<code>logs\backend\backend.log</code>)</div>
+  </div>
+  <div class="qs">
+    <div class="q">Elfelejtett PIN</div>
+    <div class="a">→ Admin konzol → felhasználó kikeresése → PIN reset</div>
+  </div>
+  <div class="qs">
+    <div class="q">Fiók zárolva (brute force)</div>
+    <div class="a">→ Várj 30 percet VAGY Admin konzol → Feloldás gomb</div>
+  </div>
+  <div class="qs">
+    <div class="q">AI azonosítás nem működik / 503 hiba</div>
+    <div class="a">→ Beállítások → Claude: Kapcsolat teszt → Ollama fut-e? → Legalább egy motornak működnie kell</div>
+  </div>
+  <div class="qs">
+    <div class="q">LoRA tréning "befagyott" (pending státusz)</div>
+    <div class="a">→ LoRA oldal → job sor → Törlés gomb → Indíts új tréninget</div>
+  </div>
+  <div class="qs">
+    <div class="q">Export (xlsx/docx/PDF) nem tölt le</div>
+    <div class="a">→ Böngésző letöltési blokkoló? → <code>exports\</code> mappa létezik? → szerver log: <code>logs\backend\backend.log</code></div>
+  </div>
+  <div class="qs">
+    <div class="q">Scraper nem talál árakat</div>
+    <div class="a">→ Webes árak → Ping teszt → elérhető a weboldal? → Script teszt futtatása → Playwright telepítve? (<code>python -m playwright install chromium</code>)</div>
+  </div>
+
+  <h3>Diagnosztika oldal</h3>
+  <p>Az összes szolgáltatás állapota egy helyen: <code>ui/kezelőpult_v2.html</code> — API, DB, Ollama, ChromaDB, platform info.</p>
+</section>
+
+<!-- 16 -->
+<section id="s16">
+  <h2><span class="n">16</span> Telepítés &amp; iOS kompatibilitás</h2>
+
+  <h3>Rendszerkövetelmények</h3>
+  <table>
+    <thead><tr><th>Komponens</th><th>Minimum</th><th>Megjegyzés</th></tr></thead>
+    <tbody>
+      <tr><td>OS</td><td>Windows 10/11 64-bit</td><td>LTSC és Home is OK</td></tr>
+      <tr><td>Python</td><td>3.11 (pontosan)</td><td>3.12+ psycopg2/pydantic gondok miatt nem ajánlott</td></tr>
+      <tr><td>PostgreSQL</td><td>16.x</td><td>Telepítő: <code>winget install PostgreSQL.PostgreSQL.16</code></td></tr>
+      <tr><td>RAM</td><td>8 GB</td><td>Ollama + backend + DB együtt ~3 GB</td></tr>
+      <tr><td>Tárhely</td><td>20 GB szabad</td><td>LLM modellek 4–8 GB/db</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Első telepítés – helyes sorrend</h3>
+  <div class="card">
+    <p style="margin:0"><strong style="color:var(--done)">1. setup.bat</strong> – Python 3.11 venv létrehozás, pip install, Playwright chromium</p>
+    <p style="margin:.4rem 0 0"><strong style="color:var(--done)">2. db_init.bat</strong> – PostgreSQL adatmappa inicializálás (automatikus port 5433 konfig)</p>
+    <p style="margin:.4rem 0 0"><strong style="color:var(--done)">3. migrate.bat</strong> – db_schema.py → admin user → v02–v08 migrációk</p>
+    <p style="margin:.4rem 0 0"><strong style="color:var(--done)">4. INDITAS.bat</strong> – backend indítás, böngésző: <code>http://localhost:8000</code></p>
+  </div>
+
+  <h3>Port konfiguráció</h3>
+  <div class="qs">
+    <div class="q">Miért 5433 és nem 5432?</div>
+    <div class="a">Ha a gépen már fut telepített PostgreSQL (pl. pgAdmin-hoz), az foglalja az 5432-t. A CRT saját példánya ezért 5433-on fut — ez beágyazott, nem kell különválasztani.</div>
+  </div>
+  <div class="qs">
+    <div class="q">Több gép / hálózati hozzáférés</div>
+    <div class="a">→ <code>.env</code>: <code>listen_addresses = '*'</code> → PostgreSQL tűzfalszabály → <code>ALLOWED_HOSTS</code> bővítés a main.py-ban → HTTPS kötelező élesben!</div>
+  </div>
+
+  <h3>iOS / mobil hozzáférés</h3>
+  <p>A CRT backend REST API, így iPhone/iPad Safari-ból is elérhető — <strong>feltételek:</strong></p>
+  <table>
+    <thead><tr><th>Feltétel</th><th>Leírás</th><th>Megvalósítás</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>HTTPS</strong></td>
+        <td>iOS Safari csak HTTPS-en fut megbízhatóan (HTTP-n cookie/session problémák)</td>
+        <td>Nginx reverse proxy + Let's Encrypt cert, vagy Cloudflare Tunnel</td>
+      </tr>
+      <tr>
+        <td><strong>CORS</strong></td>
+        <td>A backend CORS-fejléceket kell visszaadjon az iOS domain felé</td>
+        <td><code>main.py</code>: <code>allow_origins=["https://sajat.domain.hu"]</code></td>
+      </tr>
+      <tr>
+        <td><strong>Hálózat</strong></td>
+        <td>iPhone ugyanazon a LAN-on legyen, VAGY nyilvános IP/domain</td>
+        <td>Router port-forward: 443 → CRT gép:443 (Nginx)</td>
+      </tr>
+      <tr>
+        <td><strong>PWA (opcionális)</strong></td>
+        <td>manifest.json + service worker → telepíthető iPhone-ra</td>
+        <td>Tervezett v1.2 fejlesztés</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Frissítés meglévő telepítésre</h3>
+  <div class="qs">
+    <div class="q">Hogyan frissítek új verzióra?</div>
+    <div class="a">1. Állítsd le a backendet (Ctrl+C) · 2. Másold az új fájlokat (db, logs, .env NEM!) · 3. <code>migrate.bat</code> (migrációk idempotensek) · 4. Indítsd újra</div>
+  </div>
+
+  <h3>Éles üzem előtt kötelező</h3>
+  <div class="card" style="border-color:rgba(231,76,60,.4);background:rgba(231,76,60,.05);">
+    <p style="color:#e74c3c;font-weight:700;margin-bottom:.5rem">⚠ Biztonsági ellenőrzőlista</p>
+    <p>K-1: DB jelszó – a <code>crt2026</code> csak fejlesztésre! <code>.env</code>-ben cseréld le erős jelszóra és frissítsd a PostgreSQL felhasználót.</p>
+    <p>K-2: JWT secret – a <code>crt_dev_secret_CHANGE_IN_PRODUCTION</code> nem biztonságos! Legalább 32 véletlen karakter az <code>.env</code>-ben.</p>
+    <p>K-3: <code>.env</code> SOHA nem kerülhet szinkronba (Google Drive, Git) – tartalmaz minden titkot!</p>
+  </div>
+</section>
+
+<div style="text-align:center;padding:2rem 0 1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.75rem;margin-top:2rem">
+  CRT Ajánlatsegéd Kezelői Kézikönyv v1.0 &nbsp;·&nbsp; Civil Rendszertechnika Kft. &nbsp;·&nbsp; 2026-06-10
+</div>
+
+</main>
+
+<script>
+const secs = document.querySelectorAll('section[id], div#cover');
+const links = document.querySelectorAll('nav a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(a => a.classList.remove('active'));
+      const id = e.target.id === 'cover' ? '#cover' : '#' + e.target.id;
+      const a = document.querySelector(`nav a[href="${id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, {threshold: 0.3});
+secs.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

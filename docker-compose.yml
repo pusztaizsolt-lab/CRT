@@ -1,0 +1,133 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════════
+# CRT Ajánlatsegéd – Docker Compose v0.6
+# Indítás:  start.bat  (vagy: docker compose up -d)
+# Leállás:  stop.bat   (vagy: docker compose down)
+# Naplók:   docker compose logs -f crt-backend
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────
+  crt-db:
+    image: postgres:16-alpine
+    container_name: crt-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       crt
+      POSTGRES_USER:     crt_user
+      POSTGRES_PASSWORD: crt2026
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./db_data/pg:/var/lib/postgresql/data
+      - ./db_data/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crt_user -d crt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crt-net
+
+  # ── ChromaDB ──────────────────────────────────────────────────
+  crt-chroma:
+    image: chromadb/chroma:latest
+    container_name: crt-chroma
+    restart: unless-stopped
+    volumes:
+      - ./vectors/chroma:/chroma/chroma
+    ports:
+      - "8001:8000"
+    environment:
+      IS_PERSISTENT:      "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    networks:
+      - crt-net
+
+  # ── Ollama (helyi LLM) ────────────────────────────────────────
+  crt-ollama:
+    image: ollama/ollama:latest
+    container_name: crt-ollama
+    restart: unless-stopped
+    volumes:
+      - ./models/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    # GPU támogatás (ha van NVIDIA GPU – egyébként CPU-n fut):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    networks:
+      - crt-net
+
+  # ── FastAPI Backend ───────────────────────────────────────────
+  crt-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crt-backend
+    restart: unless-stopped
+    depends_on:
+      crt-db:
+        condition: service_healthy
+      crt-chroma:
+        condition: service_started
+      crt-ollama:
+        condition: service_started
+    environment:
+      # Adatbázis
+      CRT_DB_URL:        postgresql://crt_user:crt2026@crt-db:5432/crt
+      # Auth
+      CRT_JWT_SECRET:    ${CRT_JWT_SECRET:-crt_dev_secret_CHANGE_IN_PRODUCTION}
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CRT_OLLAMA_URL:    http://crt-ollama:11434
+      CRT_CHROMA_URL:    http://crt-chroma:8000
+      # Titkosítás
+      CRT_ENCRYPT_KEY:   ${CRT_ENCRYPT_KEY:-}
+      # Környezet
+      CRT_ENV:           ${CRT_ENV:-production}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./db_data/backups:/app/db_data
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    networks:
+      - crt-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Nginx (UI statikus fájlkiszolgáló) ───────────────────────
+  crt-nginx:
+    image: nginx:alpine
+    container_name: crt-nginx
+    restart: unless-stopped
+    depends_on:
+      - crt-backend
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    networks:
+      - crt-net
+
+networks:
+  crt-net:
+    driver: bridge
+
+volumes:
+  pg_data:
+  chroma_data:
+  ollama_data:

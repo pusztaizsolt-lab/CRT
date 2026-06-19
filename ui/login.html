@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT Ajánlatsegéd – Belépés</title>
+<style>
+/* ── TÉMÁK ───────────────────────────────────────────────── */
+[data-theme="ejszaka"] {
+  --bg-deep:    #0d0d14;
+  --bg-card:    #16161f;
+  --border:     #2a2a3e;
+  --border-hi:  #4a4a6a;
+  --accent:     #7c6af7;
+  --accent-dim: #3d3478;
+  --text:       #e8e8f0;
+  --text-dim:   #9898b8;
+  --text-muted: #5a5a7a;
+  --done:       #3ecf8e;
+  --warn:       #f5a623;
+  --err:        #e74c3c;
+}
+[data-theme="ocean"] {
+  --bg-deep:    #061624;
+  --bg-card:    #0c2236;
+  --border:     #1a3a55;
+  --border-hi:  #2e6a9a;
+  --accent:     #38b2e0;
+  --accent-dim: #1a5c80;
+  --text:       #dff0fb;
+  --text-dim:   #7ab8d8;
+  --text-muted: #3a6a88;
+  --done:       #3ecf8e;
+  --warn:       #f5a623;
+  --err:        #e74c3c;
+}
+[data-theme="forest"] {
+  --bg-deep:    #060f08;
+  --bg-card:    #0d1f10;
+  --border:     #1a3520;
+  --border-hi:  #2e6640;
+  --accent:     #4caf72;
+  --accent-dim: #1e6636;
+  --text:       #d8f0dc;
+  --text-dim:   #78b890;
+  --text-muted: #3a6848;
+  --done:       #3ecf8e;
+  --warn:       #f5a623;
+  --err:        #e74c3c;
+}
+[data-theme="steel"] {
+  --bg-deep:    #10141a;
+  --bg-card:    #1a2130;
+  --border:     #2a3548;
+  --border-hi:  #485a78;
+  --accent:     #6a8fc8;
+  --accent-dim: #2e4878;
+  --text:       #d8e4f4;
+  --text-dim:   #8898b8;
+  --text-muted: #485870;
+  --done:       #3ecf8e;
+  --warn:       #f5a623;
+  --err:        #e74c3c;
+}
+
+/* ── ALAP ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* ── KÁRTYA ──────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.logo-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.logo h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.logo .sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ── LÉPÉS JELZŐK ────────────────────────────────────────── */
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2rem;
+}
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-hi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: all .25s;
+}
+.step-dot.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--text);
+}
+.step-dot.done {
+  border-color: var(--done);
+  background: rgba(62,207,142,0.15);
+  color: var(--done);
+}
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  max-width: 48px;
+  transition: background .25s;
+}
+.step-line.done { background: var(--done); }
+
+/* ── FORM ────────────────────────────────────────────────── */
+.step-panel { display: none; }
+.step-panel.visible { display: block; }
+
+.field { margin-bottom: 1.2rem; }
+.field label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+}
+.field input {
+  width: 100%;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color .2s;
+  font-family: inherit;
+}
+.field input:focus { border-color: var(--accent); }
+.field input::placeholder { color: var(--text-muted); }
+
+/* PIN mezők sor */
+.pin-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.pin-row input {
+  flex: 1;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.65rem 0.4rem;
+}
+
+/* OTP mezők */
+.otp-row {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+}
+.otp-row input {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 0;
+  border-radius: 8px;
+}
+
+/* ── GOMBOK ──────────────────────────────────────────────── */
+.btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  margin-top: 0.6rem;
+}
+.btn-ghost:hover { border-color: var(--border-hi); color: var(--text); }
+
+/* ── ÜZENETEK ────────────────────────────────────────────── */
+.msg {
+  font-size: 0.82rem;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1rem;
+  display: none;
+}
+.msg.show { display: block; }
+.msg.err  { background: rgba(231,76,60,0.12); border: 1px solid var(--err);  color: var(--err); }
+.msg.ok   { background: rgba(62,207,142,0.1); border: 1px solid var(--done); color: var(--done); }
+.msg.info { background: rgba(124,106,247,0.1); border: 1px solid var(--accent); color: var(--text-dim); }
+
+/* ── EMAIL HINT ──────────────────────────────────────────── */
+.email-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.email-hint strong { color: var(--text-dim); }
+
+/* ── IDŐZÍTŐ ─────────────────────────────────────────────── */
+.timer {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.8rem;
+}
+.timer span { color: var(--warn); font-weight: 600; }
+
+/* ── BETÖLTŐ ─────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── STÁTUSZ WIDGET ──────────────────────────────────────── */
+.status-dot {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--done);
+  box-shadow: 0 0 6px var(--done);
+  animation: pulse 2s ease-in-out infinite;
+  cursor: pointer;
+  title: "";
+}
+.status-dot.red {
+  background: var(--err);
+  box-shadow: 0 0 6px var(--err);
+  animation: pulse-fast .6s ease-in-out infinite;
+}
+@keyframes pulse      { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes pulse-fast { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── TÉMAVÁLTÓ ───────────────────────────────────────────── */
+.theme-bar {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 6px;
+}
+.theme-btn {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.theme-btn:hover, .theme-btn.active { border-color: var(--text); }
+.theme-btn[data-t="ejszaka"] { background: #7c6af7; }
+.theme-btn[data-t="ocean"]   { background: #38b2e0; }
+.theme-btn[data-t="forest"]  { background: #4caf72; }
+.theme-btn[data-t="steel"]   { background: #6a8fc8; }
+</style>
+</head>
+<body>
+
+<!-- Témaváltó -->
+<div class="theme-bar" id="themeBar"></div>
+
+<!-- Státusz dot -->
+<div class="status-dot" id="statusDot" title="Szerver állapot"></div>
+
+<!-- Belépési kártya -->
+<div class="card">
+  <div class="logo">
+    <span class="logo-icon">⚡</span>
+    <h1>CRT Ajánlatsegéd</h1>
+    <div class="sub">Civil Rendszertechnika Kft.</div>
+  </div>
+
+  <!-- Lépésjelzők -->
+  <div class="steps">
+    <div class="step-dot active" id="dot1">1</div>
+    <div class="step-line"       id="line1"></div>
+    <div class="step-dot"        id="dot2">2</div>
+  </div>
+
+  <!-- 1. lépés – Azonosítás -->
+  <div class="step-panel visible" id="step1">
+    <div class="msg" id="msg1"></div>
+    <div class="field">
+      <label for="username">Felhasználónév</label>
+      <input id="username" type="text" placeholder="pl. feri12"
+             autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="field">
+      <label>PIN kód</label>
+      <div class="pin-row" id="pinRow"></div>
+    </div>
+    <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">Belépés</button>
+  </div>
+
+  <!-- 2. lépés – OTP -->
+  <div class="step-panel" id="step2">
+    <div class="msg" id="msg2"></div>
+    <div class="email-hint" id="emailHint"></div>
+    <div class="field">
+      <label>Ellenőrző kód (emailben érkezett)</label>
+      <div class="otp-row" id="otpRow"></div>
+    </div>
+    <button class="btn btn-primary" id="btnVerify" onclick="doVerify()">Megerősítés</button>
+    <button class="btn btn-ghost"   onclick="backToStep1()">← Vissza</button>
+    <div class="timer" id="timer"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let _username = '';
+let _otpTimer = null;
+let _otpSecs  = 600; // 10 perc
+
+// ── TÉMA ────────────────────────────────────────────────────
+const THEMES = ['ejszaka','ocean','forest','steel'];
+const themeBar = document.getElementById('themeBar');
+THEMES.forEach(t => {
+  const btn = document.createElement('button');
+  btn.className = 'theme-btn';
+  btn.dataset.t  = t;
+  btn.title      = t;
+  btn.onclick    = () => setTheme(t);
+  themeBar.appendChild(btn);
+});
+
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('crt-theme', t);
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.t === t);
+  });
+}
+
+(function initTheme() {
+  const saved = localStorage.getItem('crt-theme') || 'ejszaka';
+  setTheme(THEMES.includes(saved) ? saved : 'ejszaka');
+})();
+
+// ── PIN MEZŐK ────────────────────────────────────────────────
+const pinRow = document.getElementById('pinRow');
+for (let i = 0; i < 6; i++) {
+  const inp = document.createElement('input');
+  inp.type = 'password';
+  inp.maxLength = 1;
+  inp.inputMode = 'numeric';
+  inp.pattern   = '[0-9]';
+  inp.autocomplete = 'off';
+  inp.dataset.idx  = i;
+  inp.addEventListener('keydown', e => {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      e.target.value = e.key;
+      if (i < 5) pinRow.children[i+1].focus();
+      else document.getElementById('btnLogin').focus();
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      e.target.value = '';
+      if (i > 0) pinRow.children[i-1].focus();
+    } else if (e.key === 'Enter') {
+      doLogin();
+    } else if (!['Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+  inp.addEventListener('paste', e => {
+    e.preventDefault();
+    const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+    [...txt.slice(0,6)].forEach((ch, j) => {
+      if (pinRow.children[j]) pinRow.children[j].value = ch;
+    });
+    const next = Math.min(txt.length, 5);
+    pinRow.children[next].focus();
+  });
+  pinRow.appendChild(inp);
+}
+
+function getPin() {
+  return [...pinRow.children].map(i => i.value).join('');
+}
+
+function clearPin() {
+  [...pinRow.children].forEach(i => i.value = '');
+  pinRow.children[0].focus();
+}
+
+// ── OTP MEZŐK ────────────────────────────────────────────────
+const otpRow = document.getElementById('otpRow');
+for (let i = 0; i < 6; i++) {
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.maxLength = 1;
+  inp.inputMode = 'numeric';
+  inp.pattern   = '[0-9]';
+  inp.autocomplete = 'one-time-code';
+  inp.dataset.idx  = i;
+  inp.addEventListener('keydown', e => {
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      e.target.value = e.key;
+      if (i < 5) otpRow.children[i+1].focus();
+      else doVerify();
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      e.target.value = '';
+      if (i > 0) otpRow.children[i-1].focus();
+    } else if (e.key === 'Enter') {
+      doVerify();
+    } else if (!['Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
+  });
+  inp.addEventListener('paste', e => {
+    e.preventDefault();
+    const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+    [...txt.slice(0,6)].forEach((ch, j) => {
+      if (otpRow.children[j]) otpRow.children[j].value = ch;
+    });
+    const next = Math.min(txt.length, 5);
+    if (otpRow.children[next]) otpRow.children[next].focus();
+    if (txt.length >= 6) doVerify();
+  });
+  otpRow.appendChild(inp);
+}
+
+function getOtp() {
+  return [...otpRow.children].map(i => i.value).join('');
+}
+
+function clearOtp() {
+  [...otpRow.children].forEach(i => i.value = '');
+  otpRow.children[0].focus();
+}
+
+// ── ÜZENET ───────────────────────────────────────────────────
+function showMsg(id, text, type='err') {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg ${type} show`;
+}
+function hideMsg(id) {
+  const el = document.getElementById(id);
+  el.className = 'msg';
+}
+
+// ── OTP VISSZASZÁMLÁLÓ ───────────────────────────────────────
+function startTimer() {
+  _otpSecs = 600;
+  updateTimer();
+  if (_otpTimer) clearInterval(_otpTimer);
+  _otpTimer = setInterval(() => {
+    _otpSecs--;
+    updateTimer();
+    if (_otpSecs <= 0) {
+      clearInterval(_otpTimer);
+      showMsg('msg2', 'A kód lejárt – lépj vissza és add meg újra a PIN-t.', 'err');
+      document.getElementById('btnVerify').disabled = true;
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const m = Math.floor(_otpSecs / 60);
+  const s = String(_otpSecs % 60).padStart(2,'0');
+  const el = document.getElementById('timer');
+  el.innerHTML = _otpSecs > 0
+    ? `Kód érvényes még: <span>${m}:${s}</span>`
+    : `<span>Lejárt</span>`;
+}
+
+// ── LÉPÉS 1 → 2 ──────────────────────────────────────────────
+function goToStep2(emailHint) {
+  document.getElementById('step1').classList.remove('visible');
+  document.getElementById('step2').classList.add('visible');
+  document.getElementById('dot1').className = 'step-dot done';
+  document.getElementById('dot1').textContent = '✓';
+  document.getElementById('line1').classList.add('done');
+  document.getElementById('dot2').classList.add('active');
+  if (emailHint) {
+    document.getElementById('emailHint').innerHTML =
+      `Kód elküldve: <strong>${emailHint}</strong>`;
+  }
+  document.getElementById('btnVerify').disabled = false;
+  startTimer();
+  clearOtp();
+  setTimeout(() => otpRow.children[0].focus(), 100);
+}
+
+function backToStep1() {
+  if (_otpTimer) clearInterval(_otpTimer);
+  document.getElementById('step2').classList.remove('visible');
+  document.getElementById('step1').classList.add('visible');
+  document.getElementById('dot1').className = 'step-dot active';
+  document.getElementById('dot1').textContent = '1';
+  document.getElementById('line1').classList.remove('done');
+  document.getElementById('dot2').className = 'step-dot';
+  hideMsg('msg2');
+  clearPin();
+}
+
+// ── API: LOGIN ────────────────────────────────────────────────
+async function doLogin() {
+  hideMsg('msg1');
+  const user = document.getElementById('username').value.trim();
+  const pin  = getPin();
+
+  if (!user) { showMsg('msg1', 'Add meg a felhasználónevet!'); return; }
+  if (pin.length !== 6) { showMsg('msg1', 'A PIN pontosan 6 számjegy!'); return; }
+
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Küldés…';
+
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ username: user, pin })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.status === 'otp_sent') {
+      _username = user;
+      goToStep2(data.email_hint);
+    } else {
+      const detail = data.detail || 'Ismeretlen hiba';
+      showMsg('msg1', detail);
+    }
+  } catch (e) {
+    showMsg('msg1', 'Szerver nem elérhető – ellenőrizd hogy a CRT szerver fut.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Belépés';
+  }
+}
+
+// ── API: VERIFY ───────────────────────────────────────────────
+async function doVerify() {
+  hideMsg('msg2');
+  const code = getOtp();
+  if (code.length !== 6) { showMsg('msg2', 'Add meg a 6 jegyű kódot!'); return; }
+
+  const btn = document.getElementById('btnVerify');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Ellenőrzés…';
+
+  try {
+    const res = await fetch(`${API}/auth/verify`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ username: _username, code })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.access_token) {
+      if (_otpTimer) clearInterval(_otpTimer);
+      localStorage.setItem('crt-token',    data.access_token);
+      localStorage.setItem('crt-user',     data.username);
+      localStorage.setItem('crt-role',     data.role);
+      localStorage.setItem('crt-login-ts', Date.now());
+      showMsg('msg2', '✓ Sikeres belépés – átirányítás…', 'ok');
+      setTimeout(() => {
+        if (data.role === 'admin') {
+          window.location.href = 'admin.html';
+        } else {
+          window.location.href = 'fomenu.html';
+        }
+      }, 800);
+    } else {
+      const detail = data.detail || 'Érvénytelen kód';
+      showMsg('msg2', detail);
+      clearOtp();
+      btn.disabled = false;
+      btn.textContent = 'Megerősítés';
+    }
+  } catch (e) {
+    showMsg('msg2', 'Szerver nem elérhető.');
+    btn.disabled = false;
+    btn.textContent = 'Megerősítés';
+  }
+}
+
+// ── STÁTUSZ WIDGET ───────────────────────────────────────────
+async function checkStatus() {
+  const dot = document.getElementById('statusDot');
+  try {
+    const res = await fetch(`${API}/status/widget`, { signal: AbortSignal.timeout(4000) });
+    const d   = await res.json();
+    dot.className = d.status === 'green' ? 'status-dot' : 'status-dot red';
+    dot.title     = d.status === 'green'
+      ? `Szerver OK – ${d.time}`
+      : `Hiba: ${JSON.stringify(d.checks)}`;
+  } catch {
+    dot.className = 'status-dot red';
+    dot.title     = 'Szerver nem elérhető';
+  }
+}
+
+checkStatus();
+setInterval(checkStatus, 30000);
+
+// ── ENTER a PIN utolsó mezőjéből ─────────────────────────────
+document.getElementById('username').addEventListener('keydown', e => {
+  if (e.key === 'Enter') pinRow.children[0].focus();
+});
+</script>
+</body>
+</html>

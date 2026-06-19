@@ -125,10 +125,11 @@ def parse_pdf(content: bytes) -> List[Dict]:
         import pdfplumber
     except ImportError:
         raise ValueError("pdfplumber csomag hiányzik – telepítés: py -3.11 -m pip install pdfplumber")
+
     result = []
     with pdfplumber.open(io.BytesIO(content)) as pdf:
         for page in pdf.pages:
-            # Táblák elsőbbsége
+            # 1. Táblák elsőbbsége
             for table in (page.extract_tables() or []):
                 if not table or len(table) < 2:
                     continue
@@ -141,14 +142,52 @@ def parse_pdf(content: bytes) -> List[Dict]:
                         n['name'] = cells[0]
                     if n.get('name'):
                         result.append(n)
-            # Sima szöveg fallback ha nincs tábla az oldalon
+
+            # 2. Sima szöveg (digitális PDF)
             if not result:
-                txt = page.extract_text() or ''
-                for line in txt.split('\n'):
-                    line = line.strip()
-                    if len(line) > 3 and not re.match(r'^\d+$', line):
-                        result.append({'name': line, '_raw': True})
+                txt = (page.extract_text() or '').strip()
+                if txt:
+                    for line in txt.split('\n'):
+                        line = line.strip()
+                        if len(line) > 3 and not re.match(r'^\d+$', line):
+                            result.append({'name': line, '_raw': True})
+
+            # 3. OCR fallback – képes PDF oldal (ha nincs kinyerhető szöveg)
+            if not result:
+                result += _ocr_page(page)
+
     return result
+
+
+def _ocr_page(page) -> List[Dict]:
+    """
+    Képes PDF oldal OCR-rel (pytesseract + Pillow).
+    Csak akkor hívódik, ha pdfplumber nem talált szöveget.
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        return []
+
+    try:
+        img = page.to_image(resolution=200).original
+        if not isinstance(img, Image.Image):
+            img = Image.fromarray(img)
+        txt = pytesseract.image_to_string(img, lang="hun+eng", config="--psm 6")
+    except Exception:
+        return []
+
+    rows = []
+    for line in txt.split('\n'):
+        line = line.strip()
+        # Kizárjuk a rövid, szám-csak, és fejléc-szerű sorokat
+        if len(line) < 4:
+            continue
+        if re.match(r'^[\d\s.,/-]+$', line):
+            continue
+        rows.append({'name': line, '_raw': True, '_ocr': True})
+    return rows
 
 
 # ── WORD ─────────────────────────────────────────────────────

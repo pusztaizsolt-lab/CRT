@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Árak</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:.7rem;}
+.topbar h1{font-size:.95rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+
+/* ── STATS SÁV ── */
+.stats-bar{display:flex;gap:.6rem;padding:.55rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-wrap:wrap;flex-shrink:0;}
+.stat-box{background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;padding:.35rem .75rem;font-size:.75rem;}
+.stat-box strong{display:block;font-size:1rem;font-weight:700;color:var(--accent);}
+.stat-box span{color:var(--text-muted);}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden;}
+
+/* ── SZŰRŐ OLDALSÁV ── */
+.sidebar{width:220px;border-right:1px solid var(--border);background:var(--bg-card);flex-shrink:0;padding:.8rem;display:flex;flex-direction:column;gap:.5rem;overflow-y:auto;}
+.fl{font-size:.68rem;font-weight:700;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-top:.5rem;}
+.fl:first-child{margin-top:0;}
+.fi{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.38rem .6rem;color:var(--text);font-size:.8rem;outline:none;font-family:inherit;}
+.fi:focus{border-color:var(--accent);}
+.fi select{cursor:pointer;}
+
+/* ── FŐ TARTALOM ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0;}
+
+/* ── TÁBLA ── */
+.table-wrap{flex:1;overflow:auto;}
+table.prices{width:100%;border-collapse:collapse;font-size:.79rem;}
+table.prices th{background:var(--bg-card);color:var(--text-muted);font-weight:600;padding:.45rem .7rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:5;}
+table.prices td{padding:.42rem .7rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.prices tr:hover td{background:rgba(255,255,255,.025);}
+td.price-val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
+
+/* ── KOR JELZŐK ── */
+.age-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.age-fresh{background:var(--done);}
+.age-warn {background:var(--warn);}
+.age-old  {background:var(--err);}
+.age-unk  {background:var(--text-muted);}
+
+/* ── TÍPUS CHIP ── */
+.type-chip{font-size:.67rem;padding:.1rem .35rem;border-radius:99px;font-weight:600;}
+.tc-lista  {background:rgba(124,106,247,.15);color:var(--accent);}
+.tc-kisker {background:rgba(56,178,224,.12);color:#38b2e0;}
+.tc-nagyker{background:rgba(62,207,142,.12);color:var(--done);}
+.tc-egyedi {background:rgba(245,166,35,.12);color:var(--warn);}
+
+/* ── LAPOZÓ ── */
+.pager{display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-top:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.pager-info{font-size:.76rem;color:var(--text-muted);flex:1;}
+.pager button{padding:.28rem .55rem;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.75rem;font-family:inherit;}
+.pager button:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.pager button:disabled{opacity:.35;cursor:not-allowed;}
+.pager button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:100;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg-card);border:1px solid var(--border-hi);border-radius:14px;padding:1.4rem;width:100%;max-width:440px;}
+.modal h3{font-size:.95rem;font-weight:700;margin-bottom:1rem;}
+.field{margin-bottom:.7rem;}
+.field label{display:block;font-size:.72rem;color:var(--text-dim);margin-bottom:.2rem;}
+.field input,.field select{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-size:.83rem;outline:none;font-family:inherit;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.modal-btns{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;}
+
+/* ── GOMBOK ── */
+.btn{padding:.4rem .8rem;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.79rem;font-family:inherit;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+.btn-sm{padding:.26rem .52rem;font-size:.73rem;}
+.btn-danger{border-color:var(--err);color:var(--err);}
+
+/* ── EMPTY / SPINNER ── */
+.center-msg{display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:.5rem;color:var(--text-muted);font-size:.85rem;}
+.spinner-lg{width:22px;height:22px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;left:1.2rem;width:9px;height:9px;border-radius:50%;background:var(--done);box-shadow:0 0 5px var(--done);animation:pulse 2s ease-in-out infinite;}
+.status-dot.red{background:var(--err);box-shadow:0 0 5px var(--err);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── TÉMA ── */
+.theme-bar{display:flex;gap:5px;}
+.theme-btn{width:14px;height:14px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="fomenu.html" style="color:var(--text-muted);text-decoration:none;font-size:.82rem;">← Főmenü</a>
+    <h1>💰 Árak</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Kézi ár</button>
+    <button class="btn btn-sm btn-danger" onclick="doLogout()">Kilépés</button>
+  </div>
+</div>
+
+<!-- STATS SÁV -->
+<div class="stats-bar" id="statsBar">
+  <div class="stat-box"><strong id="st-total">–</strong><span>Összes áradat</span></div>
+  <div class="stat-box"><strong id="st-items">–</strong><span>Egyedi cikk</span></div>
+  <div class="stat-box"><strong id="st-src">–</strong><span>Forrás</span></div>
+  <div class="stat-box"><strong id="st-fresh">–</strong><span>Friss (≤7 nap)</span></div>
+  <div class="stat-box"><strong id="st-last">–</strong><span>Utolsó frissítés</span></div>
+</div>
+
+<div class="layout">
+
+  <!-- SZŰRŐ PANEL -->
+  <div class="sidebar">
+    <div class="fl">Keresés</div>
+    <input class="fi" id="fQ" type="text" placeholder="Terméknév…" oninput="debouncedLoad()">
+
+    <div class="fl">Árszint</div>
+    <select class="fi" id="fType" onchange="loadPrices()">
+      <option value="">Összes</option>
+      <option value="lista">Lista</option>
+      <option value="kisker">Kisker</option>
+      <option value="nagyker">Nagyker</option>
+      <option value="egyedi">Egyedi</option>
+    </select>
+
+    <div class="fl">Forrás</div>
+    <select class="fi" id="fSource" onchange="loadPrices()">
+      <option value="">Összes</option>
+    </select>
+
+    <div class="fl">Frissesség</div>
+    <select class="fi" id="fFresh" onchange="loadPrices()">
+      <option value="">Minden kor</option>
+      <option value="1">Csak ≤30 napos</option>
+    </select>
+
+    <div class="fl">Sorok / oldal</div>
+    <select class="fi" id="fLimit" onchange="loadPrices()">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+    </select>
+
+    <div style="margin-top:.4rem;">
+      <button class="btn btn-sm" style="width:100%;" onclick="resetFilters()">↺ Szűrők törlése</button>
+    </div>
+  </div>
+
+  <!-- FŐ TARTALOM -->
+  <div class="main">
+    <div class="toolbar">
+      <span style="font-size:.78rem;color:var(--text-muted);" id="toolbarInfo">Betöltés…</span>
+      <div style="flex:1;"></div>
+      <button class="btn btn-sm" onclick="exportCsv()">⬇ CSV</button>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <div class="center-msg"><div class="spinner-lg"></div>Betöltés…</div>
+    </div>
+
+    <div class="pager" id="pager" style="display:none;">
+      <span class="pager-info" id="pagerInfo"></span>
+      <button onclick="goPage(_page-1)" id="btnPrev">‹</button>
+      <div style="display:flex;gap:.25rem;" id="pagerPages"></div>
+      <button onclick="goPage(_page+1)" id="btnNext">›</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: Kézi ár hozzáadás -->
+<div class="overlay" id="modalAdd">
+  <div class="modal">
+    <h3>Kézi ár rögzítése</h3>
+    <div class="field">
+      <label>Termék neve (keresés)</label>
+      <input id="addSearch" type="text" placeholder="min. 3 karakter…" oninput="searchItems()">
+    </div>
+    <div id="addSearchResults" style="margin-bottom:.6rem;max-height:120px;overflow-y:auto;"></div>
+    <div class="field">
+      <label>Kiválasztott cikk ID</label>
+      <input id="addItemId" type="text" placeholder="UUID…" readonly style="opacity:.6;">
+    </div>
+    <div style="display:flex;gap:.6rem;">
+      <div class="field" style="flex:1;">
+        <label>Ár (Ft)</label>
+        <input id="addPrice" type="number" min="0" step="any" placeholder="0">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Árszint</label>
+        <select id="addType">
+          <option value="lista">Lista</option>
+          <option value="kisker">Kisker</option>
+          <option value="nagyker">Nagyker</option>
+          <option value="egyedi">Egyedi</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Szállítói cikkszám (opcionális)</label>
+      <input id="addSupCode" type="text" placeholder="">
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalAdd')">Mégse</button>
+      <button class="btn btn-primary" onclick="saveManualPrice()">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<div class="status-dot" id="statusDot"></div>
+
+<script>
+const API='http://localhost:8000';
+function getToken(){ return localStorage.getItem('crt-token')||''; }
+function authH()   { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+if(!getToken()) window.location.href='login.html';
+
+// ── TÉMÁK ─────────────────────────────────────────────────────
+const THEMES=['ejszaka','ocean','forest','steel'];
+document.getElementById('themeBar').innerHTML=THEMES.map(t=>
+  `<button class="theme-btn" data-t="${t}" onclick="setTheme('${t}')"></button>`).join('');
+function setTheme(t){
+  document.documentElement.dataset.theme=t;
+  localStorage.setItem('crt-theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+}
+(()=>{ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+function doLogout(){
+  fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}).catch(()=>{});
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href='login.html';
+}
+
+// ── ÁLLAPOT ───────────────────────────────────────────────────
+let _page=1, _total=0, _rows=[], _debTimer=null;
+function debouncedLoad(){ clearTimeout(_debTimer); _debTimer=setTimeout(()=>{ _page=1; loadPrices(); },350); }
+
+// ── STATISZTIKA ───────────────────────────────────────────────
+async function loadStats(){
+  try{
+    const res=await fetch(`${API}/prices/stats`,{headers:authH()});
+    const d=await res.json();
+    document.getElementById('st-total').textContent=(d.total||0).toLocaleString('hu-HU');
+    document.getElementById('st-items').textContent=(d.item_count||0).toLocaleString('hu-HU');
+    document.getElementById('st-src').textContent  =(d.source_count||0);
+    document.getElementById('st-fresh').textContent=(d.fresh_7d||0).toLocaleString('hu-HU');
+    document.getElementById('st-last').textContent =d.last_update?fmtDate(d.last_update):'–';
+  } catch{}
+}
+
+// ── FORRÁS LISTA (szűrőhöz) ───────────────────────────────────
+async function loadSources(){
+  try{
+    const res=await fetch(`${API}/web/sources`,{headers:authH()});
+    const d=await res.json();
+    const sel=document.getElementById('fSource');
+    (d.sources||[]).forEach(s=>{
+      const o=document.createElement('option');
+      o.value=s.id; o.textContent=s.name;
+      sel.appendChild(o);
+    });
+  } catch{}
+}
+
+// ── SZŰRŐK ────────────────────────────────────────────────────
+function resetFilters(){
+  document.getElementById('fQ').value='';
+  document.getElementById('fType').value='';
+  document.getElementById('fSource').value='';
+  document.getElementById('fFresh').value='';
+  document.getElementById('fLimit').value='50';
+  _page=1; loadPrices();
+}
+
+function getParams(){
+  const p=new URLSearchParams();
+  const q=document.getElementById('fQ').value.trim();
+  const t=document.getElementById('fType').value;
+  const s=document.getElementById('fSource').value;
+  const f=document.getElementById('fFresh').value;
+  const l=parseInt(document.getElementById('fLimit').value)||50;
+  if(q) p.set('q',q);
+  if(t) p.set('price_type',t);
+  if(s) p.set('source_id',s);
+  if(f) p.set('fresh_only','true');
+  p.set('limit',l);
+  p.set('offset',(_page-1)*l);
+  return {params:p, limit:l};
+}
+
+// ── BETÖLTÉS ──────────────────────────────────────────────────
+async function loadPrices(){
+  const wrap=document.getElementById('tableWrap');
+  wrap.innerHTML='<div class="center-msg"><div class="spinner-lg"></div>Betöltés…</div>';
+  document.getElementById('pager').style.display='none';
+  document.getElementById('toolbarInfo').textContent='Betöltés…';
+
+  const {params,limit}=getParams();
+  try{
+    const res=await fetch(`${API}/prices/?${params}`,{headers:authH()});
+    if(!res.ok) throw new Error((await res.json()).detail||'Hiba');
+    const d=await res.json();
+    _rows=d.prices||[];
+    _total=d.total||0;
+    renderTable();
+    renderPager(limit);
+    document.getElementById('toolbarInfo').textContent=`${_total} áradat`;
+  } catch(e){
+    wrap.innerHTML=`<div class="center-msg"><span style="color:var(--err);">Hiba: ${esc(e.message)}</span></div>`;
+  }
+}
+
+// ── TÁBLA ─────────────────────────────────────────────────────
+const TYPE_CL={lista:'tc-lista',kisker:'tc-kisker',nagyker:'tc-nagyker',egyedi:'tc-egyedi'};
+const AGE_CL ={fresh:'age-fresh',warn:'age-warn',old:'age-old',unknown:'age-unk'};
+const AGE_TIP={fresh:'Friss (≤7 nap)',warn:'Figyelmeztető (8–30 nap)',old:'Régi (>30 nap)',unknown:'Ismeretlen kor'};
+
+function renderTable(){
+  const wrap=document.getElementById('tableWrap');
+  if(!_rows.length){
+    wrap.innerHTML='<div class="center-msg">Nincs találat.</div>';
+    return;
+  }
+  wrap.innerHTML=`<table class="prices">
+    <thead><tr>
+      <th style="width:18px;"></th>
+      <th>Terméknév</th>
+      <th style="width:130px;">Gyártó</th>
+      <th style="width:50px;">Me.</th>
+      <th style="width:80px;">Típus</th>
+      <th style="width:110px;text-align:right;">Ár (Ft)</th>
+      <th style="width:120px;">Forrás</th>
+      <th style="width:100px;">Rögzítve</th>
+      <th style="width:60px;">Cikkszám</th>
+      <th style="width:36px;"></th>
+    </tr></thead>
+    <tbody>${_rows.map((r,i)=>`
+      <tr>
+        <td><span class="age-dot ${AGE_CL[r.age_status]||'age-unk'}" title="${AGE_TIP[r.age_status]||''}"></span></td>
+        <td>${esc(r.item_name||'–')}<br><span style="font-size:.68rem;color:var(--text-muted);">${esc(r.item_id||'')}</span></td>
+        <td style="font-size:.75rem;color:var(--text-muted);">${esc(r.manufacturer||'–')}</td>
+        <td style="font-size:.75rem;">${esc(r.unit||'db')}</td>
+        <td><span class="type-chip ${TYPE_CL[r.price_type]||''}">${esc(r.price_type||'–')}</span></td>
+        <td class="price-val">${r.price!=null?parseFloat(r.price).toLocaleString('hu-HU',{maximumFractionDigits:0}):'–'}</td>
+        <td style="font-size:.73rem;color:var(--text-muted);">${esc(r.source_name||'kézi')}</td>
+        <td style="font-size:.72rem;color:var(--text-muted);">${fmtDate(r.db_inserted)}</td>
+        <td style="font-size:.7rem;color:var(--text-muted);">${esc(r.supplier_code||'–')}</td>
+        <td><button class="btn btn-sm btn-danger" title="Töröl" onclick="deletePrice(${r.id})">×</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── LAPOZÓ ────────────────────────────────────────────────────
+function renderPager(limit){
+  const pg=document.getElementById('pager');
+  if(_total<=0){ pg.style.display='none'; return; }
+  pg.style.display='flex';
+  const pages=Math.ceil(_total/limit);
+  document.getElementById('pagerInfo').textContent=`${(_page-1)*limit+1}–${Math.min(_page*limit,_total)} / ${_total}`;
+  document.getElementById('btnPrev').disabled=_page<=1;
+  document.getElementById('btnNext').disabled=_page>=pages;
+  const start=Math.max(1,_page-2), end=Math.min(pages,start+4);
+  document.getElementById('pagerPages').innerHTML=
+    Array.from({length:end-start+1},(_,i)=>start+i).map(p=>
+      `<button class="${p===_page?'active':''}" onclick="goPage(${p})">${p}</button>`).join('');
+}
+function goPage(p){
+  const l=parseInt(document.getElementById('fLimit').value)||50;
+  if(p<1||p>Math.ceil(_total/l)) return;
+  _page=p; loadPrices();
+}
+
+// ── TÖRLÉS ────────────────────────────────────────────────────
+async function deletePrice(id){
+  if(!confirm('Töröljük ezt az áradatot?')) return;
+  try{
+    const res=await fetch(`${API}/prices/${id}`,{method:'DELETE',headers:authH()});
+    if(res.ok){ showToast('Törölve'); loadPrices(); loadStats(); }
+    else{ const d=await res.json(); showToast(d.detail||'Törlési hiba','err'); }
+  } catch{ showToast('Szerver hiba','err'); }
+}
+
+// ── KÉZI ÁR MODAL ────────────────────────────────────────────
+function openAddModal(){ document.getElementById('modalAdd').classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+let _searchTimer=null;
+function searchItems(){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(async ()=>{
+    const q=document.getElementById('addSearch').value.trim();
+    const el=document.getElementById('addSearchResults');
+    if(q.length<3){ el.innerHTML=''; return; }
+    try{
+      const res=await fetch(`${API}/cikktorzs/search?q=${encodeURIComponent(q)}`,{headers:authH()});
+      const d=await res.json();
+      const items=d.results||[];
+      if(!items.length){ el.innerHTML='<div style="font-size:.75rem;color:var(--text-muted);padding:.3rem 0;">Nincs találat</div>'; return; }
+      el.innerHTML=items.slice(0,8).map(it=>`
+        <div style="padding:.3rem .5rem;border-radius:5px;cursor:pointer;font-size:.78rem;display:flex;gap:.5rem;"
+             onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''"
+             onclick="selectItem('${esc(it.item_id)}','${esc(it.name)}')">
+          <span style="flex:1;">${esc(it.name)}</span>
+          <span style="color:var(--text-muted);font-size:.7rem;">${esc(it.tipus||'')}</span>
+        </div>`).join('');
+    } catch{ el.innerHTML=''; }
+  },300);
+}
+
+function selectItem(id,name){
+  document.getElementById('addItemId').value=id;
+  document.getElementById('addSearch').value=name;
+  document.getElementById('addSearchResults').innerHTML='';
+}
+
+async function saveManualPrice(){
+  const item_id   =document.getElementById('addItemId').value.trim();
+  const price     =parseFloat(document.getElementById('addPrice').value);
+  const price_type=document.getElementById('addType').value;
+  const sup_code  =document.getElementById('addSupCode').value.trim();
+  if(!item_id){ showToast('Válassz terméket','err'); return; }
+  if(!price||isNaN(price)){ showToast('Add meg az árat','err'); return; }
+  try{
+    const res=await fetch(`${API}/prices/`,{method:'POST',headers:authH(),
+      body:JSON.stringify({item_id,price,price_type,supplier_code:sup_code||null})});
+    const d=await res.json();
+    if(res.ok){
+      closeModal('modalAdd');
+      showToast('✓ Ár rögzítve');
+      loadPrices(); loadStats();
+      document.getElementById('addSearch').value='';
+      document.getElementById('addItemId').value='';
+      document.getElementById('addPrice').value='';
+      document.getElementById('addSupCode').value='';
+    } else { showToast(d.detail||'Hiba','err'); }
+  } catch{ showToast('Szerver hiba','err'); }
+}
+
+// ── CSV ───────────────────────────────────────────────────────
+function exportCsv(){
+  if(!_rows.length){ alert('Nincs adat'); return; }
+  const hdr=['ID','Termék','Gyártó','Me.','Típus','Ár','Pénznem','Forrás','Rögzítve','Cikkszám'];
+  const rows=_rows.map(r=>[
+    r.id,esc(r.item_name||''),esc(r.manufacturer||''),esc(r.unit||''),
+    r.price_type,r.price,r.currency||'HUF',esc(r.source_name||'kézi'),
+    fmtDate(r.db_inserted),esc(r.supplier_code||'')
+  ].map(v=>`"${v}"`).join(','));
+  const csv='﻿'+[hdr.join(','),...rows].join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`crt_arak_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+let _tt=null;
+function showToast(msg,type='ok'){
+  let el=document.getElementById('_toast');
+  if(!el){ el=document.createElement('div'); el.id='_toast';
+    el.style.cssText='position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-hi);border-radius:8px;padding:.5rem 1rem;font-size:.82rem;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;';
+    document.body.appendChild(el); }
+  el.textContent=msg;
+  el.style.borderColor=type==='ok'?'var(--done)':type==='warn'?'var(--warn)':'var(--err)';
+  el.style.color=type==='ok'?'var(--done)':type==='warn'?'var(--warn)':'var(--err)';
+  el.style.opacity='1'; if(_tt) clearTimeout(_tt);
+  _tt=setTimeout(()=>el.style.opacity='0',2400);
+}
+
+// ── SEGÉD ─────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso){
+  if(!iso) return '–';
+  try{ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; } catch{ return iso; }
+}
+
+// ── STÁTUSZ DOT ───────────────────────────────────────────────
+async function checkStatus(){
+  const dot=document.getElementById('statusDot');
+  try{ const d=await (await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)})).json();
+    dot.className=d.status==='green'?'status-dot':'status-dot red'; } catch{ dot.className='status-dot red'; }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadStats(); loadSources(); loadPrices();
+checkStatus(); setInterval(checkStatus,30000);
+</script>
+</body>
+</html>

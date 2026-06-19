@@ -1,4 +1,4 @@
-"""
+﻿"""
 CRT Adatbázis Migrációs Script v0.2
 Futtatás: py -3.11 db_migrate_v02.py
 
@@ -9,11 +9,12 @@ Változások:
 """
 from sqlalchemy import create_engine, text
 import logging
+from env_detect import get_db_url
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("CRT.migrate")
 
-DB_URL = "postgresql://crt_user:crt2026@localhost:5432/crt"
+DB_URL = get_db_url()
 engine = create_engine(DB_URL, echo=False)
 
 # ── MIGRÁCIÓK ─────────────────────────────────────────────────
@@ -72,13 +73,13 @@ def generate_crt_codes(conn):
 
     # Tevékenységek
     acts = conn.execute(text(
-        "SELECT activity_id FROM activities WHERE crt_code IS NULL ORDER BY created_at"
+        "SELECT item_id FROM activities WHERE crt_code IS NULL ORDER BY created_at"
     )).fetchall()
 
     for i, row in enumerate(acts, start=1):
         code = f"CRT-A-{i:06d}"
         conn.execute(text(
-            "UPDATE activities SET crt_code = :code WHERE activity_id = :id AND crt_code IS NULL"
+            "UPDATE activities SET crt_code = :code WHERE item_id = :id AND crt_code IS NULL"
         ), {"code": code, "id": row[0]})
 
     if acts:

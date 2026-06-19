@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Ajánlatkészítő</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;--cell-ok:rgba(62,207,142,.15);--cell-warn:rgba(245,166,35,.12);--cell-err:rgba(231,76,60,.12);--cell-blue:rgba(56,178,224,.12);--cell-grey:rgba(90,90,122,.1);}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;--cell-ok:rgba(62,207,142,.15);--cell-warn:rgba(245,166,35,.12);--cell-err:rgba(231,76,60,.12);--cell-blue:rgba(56,178,224,.12);--cell-grey:rgba(90,90,122,.1);}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;--cell-ok:rgba(62,207,142,.15);--cell-warn:rgba(245,166,35,.12);--cell-err:rgba(231,76,60,.12);--cell-blue:rgba(56,178,224,.12);--cell-grey:rgba(90,90,122,.1);}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;--cell-ok:rgba(62,207,142,.15);--cell-warn:rgba(245,166,35,.12);--cell-err:rgba(231,76,60,.12);--cell-blue:rgba(56,178,224,.12);--cell-grey:rgba(90,90,122,.1);}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:.7rem;}
+.topbar h1{font-size:.95rem;font-weight:700;}
+.quote-chip{font-size:.72rem;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);padding:.15rem .5rem;border-radius:99px;font-weight:600;}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+
+/* ── MESTERKÉPERNYŐ ── */
+#startScreen{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.start-wrap{width:100%;max-width:700px;}
+.start-wrap h2{font-size:1.3rem;font-weight:700;margin-bottom:.4rem;}
+.start-wrap p{font-size:.85rem;color:var(--text-muted);margin-bottom:2rem;}
+.mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+.mode-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:1.5rem 1rem;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;text-align:center;}
+.mode-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.4);}
+.mode-icon{font-size:2rem;margin-bottom:.7rem;}
+.mode-title{font-size:.95rem;font-weight:700;margin-bottom:.4rem;}
+.mode-desc{font-size:.76rem;color:var(--text-muted);line-height:1.5;}
+
+/* ── FŐ SZERKESZTŐ ── */
+#editorScreen{flex:1;display:none;flex-direction:column;overflow:hidden;}
+
+/* ── FEJLÉC SÁTOR ── */
+.quote-header{background:var(--bg-card);border-bottom:1px solid var(--border);padding:.7rem 1.2rem;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.8rem;align-items:end;flex-shrink:0;}
+.qh-field label{font-size:.7rem;color:var(--text-muted);display:block;margin-bottom:.2rem;}
+.qh-field input{background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.83rem;width:100%;outline:none;font-family:inherit;}
+.qh-field input:focus{border-color:var(--accent);}
+.qh-info{font-size:.72rem;color:var(--text-muted);line-height:1.8;}
+.qh-info strong{color:var(--text-dim);}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;gap:.5rem;padding:.5rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-wrap:wrap;flex-shrink:0;}
+.toolbar-sep{width:1px;height:20px;background:var(--border);margin:0 .2rem;}
+.summary-chips{display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;}
+.s-chip{font-size:.68rem;padding:.15rem .45rem;border-radius:99px;font-weight:700;display:flex;align-items:center;gap:.2rem;}
+.chip-ok  {background:rgba(62,207,142,.15);color:var(--done);border:1px solid var(--done);}
+.chip-warn{background:rgba(245,166,35,.12);color:var(--warn);border:1px solid var(--warn);}
+.chip-err {background:rgba(231,76,60,.12);color:var(--err);border:1px solid var(--err);}
+.chip-raw {background:rgba(90,90,122,.15);color:var(--text-muted);border:1px solid var(--border);}
+
+/* ── SOROK TÁBLA ── */
+.table-wrap{flex:1;overflow:auto;}
+table.lines{width:100%;border-collapse:collapse;font-size:.8rem;}
+table.lines th{background:var(--bg-deep);color:var(--text-muted);font-weight:600;padding:.5rem .6rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:5;}
+table.lines td{padding:.45rem .6rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.lines tr:hover td{background:rgba(255,255,255,.02);}
+table.lines tr.selected td{background:var(--accent-dim);}
+
+/* ── CELLA JELZŐK ── */
+.cell-indicator{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.ci-done {background:var(--done);}
+.ci-warn {background:var(--warn);}
+.ci-unce {background:#f39c12;}
+.ci-err  {background:var(--err);}
+.ci-blue {background:#38b2e0;}
+.ci-grey {background:var(--text-muted);}
+
+.cell-status-col{width:18px;padding:.45rem .3rem !important;}
+.cell-name{position:relative;}
+.cell-badge{position:absolute;top:1px;right:1px;width:7px;height:7px;border-radius:50%;}
+
+/* ── SZERKESZTHETŐ CELLÁK ── */
+td.editable input,td.editable select{background:transparent;border:none;color:var(--text);font-size:.8rem;font-family:inherit;width:100%;outline:none;padding:0;}
+td.editable input:focus,td.editable select:focus{background:var(--bg-deep);border-radius:4px;padding:2px 4px;}
+td.price{text-align:right;font-variant-numeric:tabular-nums;}
+td.total{text-align:right;font-weight:600;color:var(--text);}
+
+/* ── ROW STÁTUSZ KIEMELÉS ── */
+tr[data-status="done"]   td.cell-name{background:var(--cell-ok);}
+tr[data-status="identified"] td.cell-name{background:var(--cell-ok);}
+tr[data-status="uncertain"] td.cell-name{background:var(--cell-warn);}
+tr[data-status="raw"]    td.cell-name{background:var(--cell-err);}
+tr[data-status="manual"] td.cell-name{background:var(--cell-blue);}
+tr[data-status="skip"]   td{background:var(--cell-grey);opacity:.5;}
+
+/* ── AI JÓVÁHAGYÓ POPUP ── */
+.ai-popup{position:fixed;bottom:1.5rem;right:1.5rem;width:340px;background:var(--bg-card);border:1px solid var(--accent);border-radius:14px;padding:1.2rem;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:80;display:none;}
+.ai-popup.show{display:block;}
+.ai-popup-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem;}
+.ai-popup-head strong{flex:1;font-size:.88rem;}
+.ai-item{font-size:.78rem;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:.6rem;margin-bottom:.5rem;}
+.ai-item .ai-name{font-weight:700;color:var(--text);margin-bottom:.2rem;}
+.ai-item .ai-meta{display:flex;gap:.6rem;flex-wrap:wrap;}
+.ai-item .ai-conf{font-size:.7rem;padding:.1rem .35rem;border-radius:99px;}
+.conf-high{background:rgba(62,207,142,.15);color:var(--done);}
+.conf-mid {background:rgba(245,166,35,.12);color:var(--warn);}
+.conf-low {background:rgba(231,76,60,.12);color:var(--err);}
+.ai-popup-btns{display:flex;gap:.4rem;margin-top:.6rem;}
+
+/* ── DRAG&DROP ZÓNA ── */
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:2rem;text-align:center;color:var(--text-muted);font-size:.85rem;cursor:pointer;transition:border-color .2s,background .2s;margin-top:1.5rem;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:var(--accent-dim);}
+.drop-zone input[type=file]{display:none;}
+
+/* ── ALAP GOMBOK ── */
+.btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.8rem;font-family:inherit;transition:all .15s;white-space:nowrap;}
+.btn:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+.btn-sm{padding:.28rem .6rem;font-size:.74rem;}
+.btn-danger{border-color:var(--err);color:var(--err);}
+.btn-danger:hover:not(:disabled){background:rgba(231,76,60,.1);}
+.btn-ai{background:linear-gradient(135deg,var(--accent-dim),#1a0a40);border-color:var(--accent);color:var(--accent);}
+.btn-ai:hover:not(:disabled){filter:brightness(1.2);}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:100;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg-card);border:1px solid var(--border-hi);border-radius:14px;padding:1.5rem;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:1rem;}
+.field{margin-bottom:.8rem;}
+.field label{display:block;font-size:.74rem;color:var(--text-dim);margin-bottom:.25rem;}
+.field input,.field select{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.5rem .7rem;color:var(--text);font-size:.84rem;outline:none;font-family:inherit;transition:border-color .2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.modal-btns{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;}
+
+/* ── ÖSSZESÍTŐ SÁV ── */
+.footer-bar{background:var(--bg-card);border-top:1px solid var(--border);padding:.5rem 1.2rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;font-size:.8rem;}
+.grand-total{font-size:1rem;font-weight:700;color:var(--text);}
+.grand-total span{color:var(--accent);}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;left:1.2rem;width:9px;height:9px;border-radius:50%;background:var(--done);box-shadow:0 0 5px var(--done);animation:pulse 2s ease-in-out infinite;}
+.status-dot.red{background:var(--err);box-shadow:0 0 5px var(--err);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── TÉMA ── */
+.theme-bar{display:flex;gap:5px;}
+.theme-btn{width:14px;height:14px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="fomenu.html" style="color:var(--text-muted);text-decoration:none;font-size:.82rem;">← Főmenü</a>
+    <h1>📋 Ajánlatkészítő</h1>
+    <span class="quote-chip" id="quoteChip" style="display:none;"></span>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <button class="btn btn-sm" id="btnSave" style="display:none;" onclick="saveQuote()">💾 Mentés</button>
+    <button class="btn btn-sm btn-danger" onclick="doLogout()">Kilépés</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     1. INDULÓ KÉPERNYŐ – mód választás
+════════════════════════════════════════════════ -->
+<div id="startScreen">
+  <div class="start-wrap">
+    <h2>Ajánlatkészítő</h2>
+    <p>Válassz egy indítási módot az alábbiak közül.</p>
+    <div class="mode-grid">
+
+      <div class="mode-card" onclick="startEmpty()">
+        <div class="mode-icon">📝</div>
+        <div class="mode-title">Üres ajánlat</div>
+        <div class="mode-desc">Új, üres táblázat. Sorokat kézzel viszel fel vagy a cikktörzsből húzol be.</div>
+      </div>
+
+      <div class="mode-card" id="modeUpload">
+        <div class="mode-icon">📤</div>
+        <div class="mode-title">Feltöltött ajánlatkérő</div>
+        <div class="mode-desc">Ügyfél Excel / Word dokumentumát töltöd fel. Az AI azonosítja a tételeket.</div>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          Húzd ide a fájlt, vagy kattints a tallózáshoz<br>
+          <small style="color:var(--text-muted);">xlsx · csv · pdf · docx · html · md</small>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.html,.htm,.md,.txt" onchange="onFileChosen(this)">
+        </div>
+      </div>
+
+      <div class="mode-card" onclick="openCopyModal()">
+        <div class="mode-icon">📋</div>
+        <div class="mode-title">Korábbi ajánlat alapján</div>
+        <div class="mode-desc">Meglévő, elmentett ajánlatból indulsz. Jó visszatérő ügyfélnél.</div>
+      </div>
+
+    </div>
+
+    <!-- Korábbi ajánlatok listája -->
+    <div style="margin-top:2rem;">
+      <div style="font-size:.75rem;font-weight:700;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.6rem;">Legutóbbi ajánlatok</div>
+      <div id="recentList" style="font-size:.82rem;color:var(--text-muted);">Betöltés…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     2. SZERKESZTŐ KÉPERNYŐ
+════════════════════════════════════════════════ -->
+<div id="editorScreen">
+
+  <!-- Fejléc sáv -->
+  <div class="quote-header">
+    <div class="qh-field">
+      <label>Ügyfél neve</label>
+      <input id="qClientName" placeholder="pl. Kovács Építőipari Kft." oninput="markDirty()">
+    </div>
+    <div class="qh-field">
+      <label>Ügyfél hivatkozás</label>
+      <input id="qClientRef" placeholder="pl. 2026/AJK-14" oninput="markDirty()">
+    </div>
+    <div class="qh-field">
+      <label>Ajánlat tárgya</label>
+      <input id="qTitle" placeholder="pl. Elektromos felszerelés – Győr" oninput="markDirty()">
+    </div>
+    <div class="qh-info" id="quoteInfo">–</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="btn btn-sm btn-primary" onclick="addRow()">+ Sor</button>
+    <button class="btn btn-sm" onclick="deleteSelected()">🗑 Töröl</button>
+    <div class="toolbar-sep"></div>
+    <button class="btn btn-sm btn-ai" id="btnAiAll" onclick="runAiAll()">🤖 AI azonosítás – mind</button>
+    <button class="btn btn-sm" onclick="fillPricesAll()">💰 Árak – mind</button>
+    <div class="toolbar-sep"></div>
+    <button class="btn btn-sm" onclick="exportExcel()">📊 Excel</button>
+    <button class="btn btn-sm" onclick="exportWord()">📄 Word</button>
+    <button class="btn btn-sm" onclick="exportPdf()">🖨 PDF</button>
+    <div class="summary-chips" id="summaryChips"></div>
+  </div>
+
+  <!-- Sorok tábla -->
+  <div class="table-wrap">
+    <table class="lines" id="linesTable">
+      <thead>
+        <tr>
+          <th style="width:18px;"></th><!-- státusz jelző -->
+          <th style="width:40px;">#</th>
+          <th>Megnevezés</th>
+          <th style="width:120px;">Gyártó</th>
+          <th style="width:60px;">Me.</th>
+          <th style="width:70px;text-align:right;">Menny.</th>
+          <th style="width:90px;text-align:right;">Egységár</th>
+          <th style="width:100px;text-align:right;">Összesen</th>
+          <th style="width:70px;"></th><!-- műveletek -->
+        </tr>
+      </thead>
+      <tbody id="linesTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Összesítő sáv -->
+  <div class="footer-bar">
+    <span id="lineCount" style="color:var(--text-muted);">0 sor</span>
+    <span style="flex:1;"></span>
+    <span style="color:var(--text-muted);">Végösszeg:</span>
+    <span class="grand-total"><span id="grandTotal">0</span> Ft</span>
+  </div>
+</div>
+
+<!-- ── AI JÓVÁHAGYÓ POPUP ── -->
+<div class="ai-popup" id="aiPopup">
+  <div class="ai-popup-head">
+    <span>🤖</span>
+    <strong>AI azonosítás</strong>
+    <button onclick="closeAiPopup()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;">×</button>
+  </div>
+  <div id="aiPopupItems"></div>
+  <div style="font-size:.73rem;color:var(--text-muted);margin-bottom:.5rem;" id="aiTokenInfo"></div>
+  <div class="ai-popup-btns">
+    <button class="btn btn-sm" onclick="rejectAll()">Elvet mind</button>
+    <button class="btn btn-sm btn-primary" onclick="acceptAll()">✓ Elfogad mind</button>
+  </div>
+</div>
+
+<!-- ── MODAL: KORÁBBI AJÁNLAT ── -->
+<div class="overlay" id="modalCopy">
+  <div class="modal">
+    <h3>Korábbi ajánlat kiválasztása</h3>
+    <div id="copyList" style="max-height:320px;overflow-y:auto;"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalCopy')">Mégse</button>
+    </div>
+  </div>
+</div>
+
+<!-- Státusz dot -->
+<div class="status-dot" id="statusDot"></div>
+
+<script>
+const API = 'http://localhost:8000';
+let _quoteId    = null;
+let _lines      = [];     // {id, line_no, name, raw_name, mfr, qty, unit, unit_price, cell_status, ...}
+let _dirty      = false;
+let _pendingAI  = [];     // AI jóváhagyásra váró sorok
+let _selRows    = new Set();
+
+function getToken(){ return localStorage.getItem('crt-token')||''; }
+function authH()   { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+if(!getToken()) window.location.href='login.html';
+
+// ── TÉMÁK ─────────────────────────────────────────────────────
+const THEMES=['ejszaka','ocean','forest','steel'];
+document.getElementById('themeBar').innerHTML=THEMES.map(t=>
+  `<button class="theme-btn" data-t="${t}" onclick="setTheme('${t}')"></button>`).join('');
+function setTheme(t){
+  document.documentElement.dataset.theme=t;
+  localStorage.setItem('crt-theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+}
+(()=>{ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+
+function doLogout(){
+  fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}).catch(()=>{});
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href='login.html';
+}
+
+// ── LEGUTÓBBI AJÁNLATOK ───────────────────────────────────────
+async function loadRecent(){
+  const el=document.getElementById('recentList');
+  try{
+    const res=await fetch(`${API}/quotes/?limit=8`,{headers:authH()});
+    const d=await res.json();
+    const quotes=d.quotes||[];
+    if(!quotes.length){ el.textContent='Nincs korábbi ajánlat.'; return; }
+    el.innerHTML=quotes.map(q=>`
+      <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem .6rem;border-radius:6px;cursor:pointer;transition:background .15s;"
+           onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''"
+           onclick="openExistingQuote(${q.id})">
+        <span style="color:var(--accent);font-size:.75rem;width:110px;flex-shrink:0;">${esc(q.quote_number||'–')}</span>
+        <span style="flex:1;">${esc(q.title||q.client_name||'Névtelen ajánlat')}</span>
+        <span style="font-size:.7rem;color:var(--text-muted);">${statusLabel(q.status)}</span>
+        <span style="font-size:.7rem;color:var(--text-muted);">${fmtDate(q.created_at)}</span>
+      </div>
+    `).join('');
+  } catch{ el.textContent='Betöltési hiba.'; }
+}
+
+function statusLabel(s){
+  return {draft:'Tervezet',sent:'Elküldve',accepted:'Elfogadva',rejected:'Elutasítva',expired:'Lejárt'}[s]||s;
+}
+
+// ── 1. MÓD: ÜRES ─────────────────────────────────────────────
+async function startEmpty(){
+  const q = await createQuote({source_mode:'manual',title:'Új ajánlat'});
+  if(!q) return;
+  enterEditor(q);
+}
+
+// ── 2. MÓD: FELTÖLTÉS ────────────────────────────────────────
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', ()=> dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) handleUpload(f); });
+
+function onFileChosen(inp){ if(inp.files[0]) handleUpload(inp.files[0]); }
+
+async function handleUpload(file){
+  const allowed=['xlsx','xls','csv','pdf','docx','doc','html','htm','md','txt'];
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!allowed.includes(ext)){ alert(`Nem támogatott formátum: .${ext}`); return; }
+
+  // Feltöltés + beolvasás
+  const formData=new FormData();
+  formData.append('file',file);
+  let rows=[];
+  try{
+    const res=await fetch(`${API}/cikktorzs/upload`,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+getToken()},
+      body:formData
+    });
+    const d=await res.json();
+    if(!res.ok) throw new Error(d.detail||'Feltöltési hiba');
+    rows=d.rows||[];
+  } catch(e){ alert(`Feltöltési hiba: ${e.message}`); return; }
+
+  if(!rows.length){ alert('A fájl nem tartalmaz feldolgozható adatot.'); return; }
+
+  // Ajánlat létrehozása
+  const q=await createQuote({source_mode:'upload',source_file:file.name,title:file.name.replace(/\.[^.]+$/,'')});
+  if(!q) return;
+  enterEditor(q);
+
+  // Sorok betöltése
+  const lines=rows.map((r,i)=>({
+    line_no:   i+1,
+    raw_name:  r.name||r.sor||Object.values(r)[0]||'',
+    name:      r.name||r.sor||Object.values(r)[0]||'',
+    manufacturer: r.manufacturer||'',
+    unit:      r.unit||'db',
+    quantity:  parseFloat(r.qty||r.quantity||r.mennyiseg||1)||1,
+    unit_price:null,
+    cell_status:'raw',
+    item_type: 'manual',
+  }));
+  _lines=lines;
+  renderTable();
+  updateSummary();
+
+  // Tömeges mentés a backendre
+  bulkSaveLines();
+}
+
+// ── 3. MÓD: KORÁBBI MÁSOLAT ──────────────────────────────────
+async function openCopyModal(){
+  closeModal('modalCopy');
+  const el=document.getElementById('copyList');
+  el.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;padding:.5rem;">Betöltés…</div>';
+  document.getElementById('modalCopy').classList.add('open');
+  try{
+    const res=await fetch(`${API}/quotes/?limit=30`,{headers:authH()});
+    const d=await res.json();
+    const quotes=d.quotes||[];
+    if(!quotes.length){ el.innerHTML='<div style="color:var(--text-muted);font-size:.82rem;padding:.5rem;">Nincs korábbi ajánlat.</div>'; return; }
+    el.innerHTML=quotes.map(q=>`
+      <div style="padding:.5rem .6rem;border-radius:6px;cursor:pointer;display:flex;gap:.6rem;align-items:center;"
+           onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''"
+           onclick="copyFromQuote(${q.id})">
+        <span style="color:var(--accent);font-size:.75rem;width:100px;flex-shrink:0;">${esc(q.quote_number||'–')}</span>
+        <span style="flex:1;font-size:.82rem;">${esc(q.title||q.client_name||'–')}</span>
+        <span style="font-size:.7rem;color:var(--text-muted);">${fmtDate(q.created_at)}</span>
+      </div>
+    `).join('');
+  } catch{ el.innerHTML='<div style="color:var(--err);font-size:.82rem;padding:.5rem;">Betöltési hiba</div>'; }
+}
+
+async function copyFromQuote(baseId){
+  closeModal('modalCopy');
+  const q=await createQuote({source_mode:'copy',base_quote_id:baseId,title:'Másolat'});
+  if(!q) return;
+
+  // Eredeti sorok beolvasása
+  try{
+    const res=await fetch(`${API}/quotes/${baseId}/lines`,{headers:authH()});
+    const d=await res.json();
+    const baseLines=(d.lines||[]).map((l,i)=>({...l,id:undefined,line_no:i+1,cell_status:'raw'}));
+    _lines=baseLines;
+    enterEditor(q);
+    renderTable();
+    updateSummary();
+    bulkSaveLines();
+  } catch{ alert('Hiba a sorok beolvasásakor.'); }
+}
+
+// ── AJÁNLAT LÉTREHOZÁS ────────────────────────────────────────
+async function createQuote(body){
+  try{
+    const res=await fetch(`${API}/quotes/`,{method:'POST',headers:authH(),body:JSON.stringify(body)});
+    const d=await res.json();
+    if(!res.ok) throw new Error(d.detail||'Hiba');
+    return d;
+  } catch(e){ alert(`Nem sikerült ajánlatot létrehozni: ${e.message}`); return null; }
+}
+
+async function openExistingQuote(id){
+  try{
+    const [qRes,lRes]=await Promise.all([
+      fetch(`${API}/quotes/${id}`,{headers:authH()}),
+      fetch(`${API}/quotes/${id}/lines`,{headers:authH()}),
+    ]);
+    const q=await qRes.json();
+    const l=await lRes.json();
+    _lines=(l.lines||[]).map(x=>({...x}));
+    enterEditor({id,quote_number:q.quote_number});
+    document.getElementById('qClientName').value=q.client_name||'';
+    document.getElementById('qClientRef').value =q.client_ref||'';
+    document.getElementById('qTitle').value     =q.title||'';
+    renderTable();
+    updateSummary();
+  } catch{ alert('Betöltési hiba.'); }
+}
+
+// ── SZERKESZTŐ MEGNYITÁS ─────────────────────────────────────
+function enterEditor(q){
+  _quoteId=q.id;
+  _dirty=false;
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('editorScreen').style.display='flex';
+  document.getElementById('btnSave').style.display='';
+  document.getElementById('quoteChip').style.display='';
+  document.getElementById('quoteChip').textContent=q.quote_number||`#${q.id}`;
+  document.getElementById('quoteInfo').innerHTML=
+    `<strong>${q.quote_number||'–'}</strong><br>Tervezet`;
+}
+
+// ── MENTÉS ────────────────────────────────────────────────────
+async function saveQuote(){
+  if(!_quoteId) return;
+  const body={
+    title:       document.getElementById('qTitle').value.trim()||null,
+    client_name: document.getElementById('qClientName').value.trim()||null,
+    client_ref:  document.getElementById('qClientRef').value.trim()||null,
+  };
+  try{
+    const res=await fetch(`${API}/quotes/${_quoteId}`,{method:'PATCH',headers:authH(),body:JSON.stringify(body)});
+    if(res.ok){ _dirty=false; showToast('✓ Mentve'); }
+    else{ const d=await res.json(); showToast(d.detail||'Mentési hiba','err'); }
+  } catch{ showToast('Szerver hiba','err'); }
+}
+
+async function bulkSaveLines(){
+  if(!_quoteId||!_lines.length) return;
+  try{
+    await fetch(`${API}/quotes/${_quoteId}/lines/bulk`,{
+      method:'POST',headers:authH(),
+      body:JSON.stringify({lines:_lines,replace:true})
+    });
+  } catch{}
+}
+
+function markDirty(){ _dirty=true; }
+
+// ── TÁBLA RENDERELÉS ──────────────────────────────────────────
+const STATUS_ICON={
+  done:'ci-done',identified:'ci-done',uncertain:'ci-unce',
+  raw:'ci-err',manual:'ci-blue',skip:'ci-grey'
+};
+const STATUS_TIP={
+  done:'Kész – azonosított, friss ár',
+  identified:'Azonosított',
+  uncertain:'Bizonytalan azonosítás',
+  raw:'Nem azonosított',
+  manual:'Kézzel kitöltve',
+  skip:'Kihagyva'
+};
+
+function renderTable(){
+  const tbody=document.getElementById('linesTbody');
+  if(!_lines.length){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem;">Nincs sor – kattints a + Sor gombra vagy tölts fel fájlt.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=_lines.map((l,i)=>{
+    const st=l.cell_status||'raw';
+    const icoCl=STATUS_ICON[st]||'ci-grey';
+    const total=l.unit_price&&l.quantity ? (l.unit_price*l.quantity).toLocaleString('hu-HU',{maximumFractionDigits:0}) : '–';
+    const conf=l.confidence!=null?`<span style="font-size:.68rem;color:${l.confidence>=0.7?'var(--done)':l.confidence>=0.5?'var(--warn)':'var(--err)'};">${Math.round(l.confidence*100)}%</span>`:'';
+    return `<tr data-status="${st}" data-idx="${i}" onclick="toggleSelect(${i},event)">
+      <td class="cell-status-col"><span class="cell-indicator ${icoCl}" title="${STATUS_TIP[st]||st}"></span></td>
+      <td style="color:var(--text-muted);font-size:.72rem;">${l.line_no||i+1}</td>
+      <td class="cell-name editable">
+        <input value="${esc(l.name||l.raw_name||'')}" placeholder="Megnevezés…"
+          oninput="_lines[${i}].name=this.value;markDirty();"
+          style="font-size:.8rem;">
+        ${conf}
+        ${l.raw_name&&l.raw_name!==l.name?`<div style="font-size:.68rem;color:var(--text-muted);margin-top:.1rem;">Eredeti: ${esc(l.raw_name)}</div>`:''}
+      </td>
+      <td class="editable"><input value="${esc(l.manufacturer||'')}" placeholder="–" oninput="_lines[${i}].manufacturer=this.value;markDirty();"></td>
+      <td class="editable"><input value="${esc(l.unit||'db')}" style="width:50px;" oninput="_lines[${i}].unit=this.value;markDirty();"></td>
+      <td class="price editable"><input type="number" value="${l.quantity||1}" min="0" step="any" style="width:60px;text-align:right;" oninput="_lines[${i}].quantity=parseFloat(this.value)||1;updateRow(${i});markDirty();"></td>
+      <td class="price editable"><input type="number" value="${l.unit_price!=null?l.unit_price:''}" placeholder="–" step="any" style="width:80px;text-align:right;" oninput="_lines[${i}].unit_price=parseFloat(this.value)||null;updateRow(${i});markDirty();"></td>
+      <td class="total" id="total_${i}">${total}</td>
+      <td>
+        <div style="display:flex;gap:.2rem;">
+          <button class="btn btn-sm btn-ai" title="AI azonosítás" onclick="runAiRow(${i});event.stopPropagation();">🤖</button>
+          <button class="btn btn-sm btn-danger" title="Töröl" onclick="deleteLine(${i});event.stopPropagation();">×</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  updateSummary();
+}
+
+function updateRow(i){
+  const l=_lines[i];
+  const total=document.getElementById(`total_${i}`);
+  if(total) total.textContent=l.unit_price&&l.quantity
+    ? (l.unit_price*l.quantity).toLocaleString('hu-HU',{maximumFractionDigits:0})
+    : '–';
+  updateSummary();
+}
+
+function updateSummary(){
+  const counts={done:0,identified:0,uncertain:0,raw:0,manual:0,skip:0};
+  let grand=0;
+  _lines.forEach(l=>{
+    const st=l.cell_status||'raw';
+    counts[st]=(counts[st]||0)+1;
+    if(l.unit_price&&l.quantity) grand+=l.unit_price*l.quantity;
+  });
+  document.getElementById('lineCount').textContent=`${_lines.length} sor`;
+  document.getElementById('grandTotal').textContent=grand.toLocaleString('hu-HU',{maximumFractionDigits:0});
+
+  const ready=counts.done+counts.identified+counts.manual;
+  const warn =counts.uncertain;
+  const bad  =counts.raw;
+  document.getElementById('summaryChips').innerHTML=`
+    ${ready?`<span class="s-chip chip-ok">✓ ${ready}</span>`:''}
+    ${warn ?`<span class="s-chip chip-warn">⚠ ${warn}</span>`:''}
+    ${bad  ?`<span class="s-chip chip-err">✗ ${bad}</span>`:''}
+    ${counts.skip?`<span class="s-chip chip-raw">– ${counts.skip}</span>`:''}
+  `;
+}
+
+// ── SOR MŰVELETEK ─────────────────────────────────────────────
+function addRow(){
+  const no=_lines.length?Math.max(..._lines.map(l=>l.line_no||0))+1:1;
+  _lines.push({line_no:no,name:'',manufacturer:'',unit:'db',quantity:1,unit_price:null,cell_status:'manual',item_type:'manual'});
+  renderTable();
+  // Fókusz az utolsó sorba
+  const inputs=document.querySelectorAll('#linesTbody tr:last-child td.cell-name input');
+  if(inputs[0]) inputs[0].focus();
+}
+
+function deleteLine(i){
+  _lines.splice(i,1);
+  _lines.forEach((l,j)=>l.line_no=j+1);
+  renderTable();
+  markDirty();
+}
+
+function toggleSelect(i,e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON') return;
+  if(_selRows.has(i)) _selRows.delete(i); else _selRows.add(i);
+  renderTable();
+}
+
+function deleteSelected(){
+  if(!_selRows.size) return;
+  _lines=_lines.filter((_,i)=>!_selRows.has(i));
+  _lines.forEach((l,i)=>l.line_no=i+1);
+  _selRows.clear();
+  renderTable();
+  markDirty();
+}
+
+// ── AI AZONOSÍTÁS ─────────────────────────────────────────────
+async function runAiAll(){
+  const rawLines=_lines.filter(l=>l.cell_status==='raw'||l.cell_status==='uncertain');
+  if(!rawLines.length){ showToast('Nincs azonosítatlan sor.','warn'); return; }
+  await runAi(rawLines.map((_,i)=>_lines.indexOf(rawLines[i])));
+}
+
+async function runAiRow(i){
+  await runAi([i]);
+}
+
+async function runAi(indices){
+  const btn=document.getElementById('btnAiAll');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>AI…';
+
+  const items=indices.map(i=>_lines[i].name||_lines[i].raw_name||'');
+  try{
+    const res=await fetch(`${API}/cikktorzs/identify`,{
+      method:'POST',headers:authH(),
+      body:JSON.stringify({items})
+    });
+    const d=await res.json();
+    if(!res.ok) throw new Error(d.detail||'AI hiba');
+
+    const results=d.results||[];
+    _pendingAI=indices.map((lineIdx,ri)=>({lineIdx, result:results[ri]||null}));
+    showAiPopup(d.tokens_used);
+  } catch(e){ showToast(`AI hiba: ${e.message}`,'err'); }
+  finally{ btn.disabled=false; btn.innerHTML='🤖 AI azonosítás – mind'; }
+}
+
+function showAiPopup(tokens){
+  const el=document.getElementById('aiPopupItems');
+  el.innerHTML=_pendingAI.map((p,i)=>{
+    const r=p.result;
+    if(!r) return `<div class="ai-item"><div class="ai-name">${esc(_lines[p.lineIdx].name||'–')}</div><div style="color:var(--err);font-size:.75rem;">Nem azonosítható</div></div>`;
+    const confCl=r.confidence>=0.7?'conf-high':r.confidence>=0.5?'conf-mid':'conf-low';
+    return `<div class="ai-item">
+      <div class="ai-name">${esc(r.name)}</div>
+      <div class="ai-meta">
+        ${r.manufacturer?`<span style="font-size:.72rem;color:var(--text-muted);">${esc(r.manufacturer)}</span>`:''}
+        <span style="font-size:.72rem;color:var(--text-muted);">${esc(r.unit||'–')} · ${esc(r.category||'–')}</span>
+        <span class="ai-conf ${confCl}">${Math.round(r.confidence*100)}%</span>
+      </div>
+    </div>`;
+  }).join('');
+  if(tokens) document.getElementById('aiTokenInfo').textContent=`${tokens.toLocaleString()} token felhasználva`;
+  document.getElementById('aiPopup').classList.add('show');
+}
+
+function acceptAll(){
+  const examples=[];
+  _pendingAI.forEach(p=>{
+    const r=p.result;
+    if(!r) return;
+    const l=_lines[p.lineIdx];
+    // Golden example gyűjtés (csak biztos azonosítás)
+    if(r.confidence>=0.7 && l.raw_name){
+      examples.push({
+        raw_text:     l.raw_name,
+        clean_name:   r.name,
+        manufacturer: r.manufacturer||null,
+        category:     r.category||null,
+        unit:         r.unit||null,
+        source:       'ai_accepted',
+      });
+    }
+    l.name=r.name;
+    if(r.manufacturer) l.manufacturer=r.manufacturer;
+    if(r.unit) l.unit=r.unit;
+    l.confidence=r.confidence;
+    l.cell_status=r.confidence>=0.7?'identified':'uncertain';
+  });
+  closeAiPopup();
+  renderTable();
+  markDirty();
+  bulkSaveLines();
+  // Golden batch mentés háttérben (nem blokkoló)
+  if(examples.length>0){
+    fetch(`${API}/golden/batch`,{
+      method:'POST',
+      headers:authH(),
+      body:JSON.stringify({examples})
+    }).then(r=>r.ok&&console.log(`Golden: ${examples.length} példa mentve`))
+      .catch(()=>{});
+  }
+}
+
+function rejectAll(){ closeAiPopup(); }
+function closeAiPopup(){ document.getElementById('aiPopup').classList.remove('show'); _pendingAI=[]; }
+
+// ── ÁRAK TÖLTÉS ───────────────────────────────────────────────
+async function fillPricesAll(){
+  const toFill=_lines.filter(l=>l.cell_status==='identified'&&l.unit_price==null);
+  if(!toFill.length){ showToast('Nincs azonosított, ár nélküli sor','warn'); return; }
+  let filled=0, notFound=0;
+  for(const l of toFill){
+    if(!l.item_id) continue;
+    try{
+      const res=await fetch(`${API}/prices/best/${encodeURIComponent(l.item_id)}`,{headers:authH()});
+      if(!res.ok) continue;
+      const d=await res.json();
+      if(d.best&&d.best.price!=null){
+        const idx=_lines.indexOf(l);
+        _lines[idx].unit_price=parseFloat(d.best.price);
+        _lines[idx].price_source=d.best.source_name||'db';
+        if(d.best.age_status==='old') _lines[idx].cell_status='uncertain';
+        else _lines[idx].cell_status='done';
+        filled++;
+      } else { notFound++; }
+    } catch{}
+  }
+  renderTable();
+  markDirty();
+  if(filled) bulkSaveLines();
+  showToast(filled?`✓ ${filled} sor árazva${notFound?' · '+notFound+' nem található':''}`:
+    'Nem sikerült árat találni','warn');
+}
+
+// ── EXPORT ────────────────────────────────────────────────────
+async function exportExcel(){ await doExport('xlsx'); }
+async function exportWord() { await doExport('docx'); }
+async function exportPdf()  { await doExport('pdf');  }
+
+async function doExport(fmt){
+  if(!_quoteId){ showToast('Nincs megnyitott ajánlat','err'); return; }
+  // Sorok mentése előbb, ha vannak módosítások
+  if(_dirty) await bulkSaveLines();
+  try{
+    const res=await fetch(`${API}/quotes/${_quoteId}/export?format=${fmt}`,{
+      headers:{'Authorization':'Bearer '+getToken()}
+    });
+    if(!res.ok){ const d=await res.json(); showToast(d.detail||'Export hiba','err'); return; }
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const cd=res.headers.get('content-disposition')||'';
+    const m=cd.match(/filename="([^"]+)"/);
+    a.download=m?m[1]:`ajanlat_${_quoteId}.${fmt}`;
+    a.href=url; a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✓ ${fmt.toUpperCase()} letöltve`);
+  } catch(e){ showToast(`Export hiba: ${e.message}`,'err'); }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+let _tt=null;
+function showToast(msg,type='ok'){
+  let el=document.getElementById('_toast');
+  if(!el){ el=document.createElement('div'); el.id='_toast';
+    el.style.cssText='position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-hi);border-radius:8px;padding:.55rem 1.1rem;font-size:.82rem;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;';
+    document.body.appendChild(el); }
+  el.textContent=msg;
+  el.style.borderColor=type==='ok'?'var(--done)':type==='warn'?'var(--warn)':'var(--err)';
+  el.style.color=type==='ok'?'var(--done)':type==='warn'?'var(--warn)':'var(--err)';
+  el.style.opacity='1';
+  if(_tt) clearTimeout(_tt);
+  _tt=setTimeout(()=>el.style.opacity='0',2400);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── STÁTUSZ DOT ───────────────────────────────────────────────
+async function checkStatus(){
+  const dot=document.getElementById('statusDot');
+  try{
+    const res=await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d=await res.json();
+    dot.className=d.status==='green'?'status-dot':'status-dot red';
+  } catch{ dot.className='status-dot red'; }
+}
+
+// ── SEGÉD ─────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso){
+  if(!iso) return '–';
+  try{ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; } catch{ return iso; }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadRecent();
+checkStatus();
+setInterval(checkStatus,30000);
+
+// Kilépés előtt figyelmeztetés ha piszkos
+window.addEventListener('beforeunload', e=>{ if(_dirty){ e.preventDefault(); e.returnValue=''; } });
+</script>
+</body>
+</html>

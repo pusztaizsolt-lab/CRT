@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT Ajánlatsegéd – Főmenü</title>
+<style>
+[data-theme="ejszaka"] {
+  --bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;
+  --accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;
+  --text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+[data-theme="ocean"] {
+  --bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;
+  --accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;
+  --text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+[data-theme="forest"] {
+  --bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;
+  --accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;
+  --text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+[data-theme="steel"] {
+  --bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;
+  --accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;
+  --text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.8rem 1.5rem;border-bottom:1px solid var(--border);
+  background:var(--bg-card);position:sticky;top:0;z-index:50;
+}
+.topbar-brand{display:flex;align-items:center;gap:.7rem;}
+.topbar-brand h1{font-size:1rem;font-weight:700;}
+.topbar-brand .sub{font-size:.75rem;color:var(--text-muted);}
+.topbar-right{display:flex;align-items:center;gap:.8rem;}
+.user-pill{
+  display:flex;align-items:center;gap:.5rem;
+  background:var(--bg-deep);border:1px solid var(--border);
+  border-radius:99px;padding:.3rem .8rem;font-size:.8rem;
+}
+.user-pill .role{font-size:.68rem;color:var(--accent);font-weight:600;}
+
+/* ── TARTALOM ── */
+.wrapper{max-width:1100px;margin:0 auto;padding:2rem 1.5rem;}
+
+/* ── ÜDVÖZLŐ ── */
+.greeting{margin-bottom:2rem;}
+.greeting h2{font-size:1.4rem;font-weight:700;margin-bottom:.3rem;}
+.greeting p{font-size:.88rem;color:var(--text-muted);}
+
+/* ── GYORS STÁTUSZ ── */
+.status-bar{
+  display:flex;gap:.6rem;margin-bottom:2rem;flex-wrap:wrap;
+}
+.status-chip{
+  display:flex;align-items:center;gap:.4rem;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:99px;padding:.3rem .8rem;font-size:.78rem;color:var(--text-dim);
+}
+.chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.chip-dot.green{background:var(--done);}
+.chip-dot.red  {background:var(--err);}
+.chip-dot.warn {background:var(--warn);}
+
+/* ── KÁRTYÁK RÁCS ── */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:1rem;
+}
+
+/* ── MENÜ KÁRTYA ── */
+.menu-card{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
+  padding:1.5rem;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;
+  position:relative;overflow:hidden;text-decoration:none;display:block;
+}
+.menu-card:hover{
+  border-color:var(--accent);
+  transform:translateY(-2px);
+  box-shadow:0 6px 24px rgba(0,0,0,.4);
+}
+.menu-card.disabled{
+  opacity:.45;cursor:not-allowed;pointer-events:none;
+}
+.menu-card.admin-only{ border-left:3px solid var(--accent); }
+
+.card-icon{font-size:2rem;margin-bottom:.8rem;display:block;}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:.3rem;}
+.card-desc{font-size:.78rem;color:var(--text-muted);line-height:1.5;}
+.card-badge{
+  position:absolute;top:.7rem;right:.7rem;
+  font-size:.65rem;font-weight:700;
+  padding:.15rem .45rem;border-radius:99px;
+}
+.badge-new{background:rgba(62,207,142,.15);color:var(--done);border:1px solid var(--done);}
+.badge-soon{background:rgba(90,90,122,.2);color:var(--text-muted);border:1px solid var(--border);}
+.badge-admin{background:rgba(124,106,247,.2);color:var(--accent);border:1px solid var(--accent);}
+
+/* ── SZEKCIÓ CÍM ── */
+.section-title{
+  font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:.8rem;margin-top:1.8rem;
+}
+
+/* ── GOMBOK ── */
+.btn{padding:.5rem 1rem;border:1px solid var(--border);border-radius:7px;
+  background:transparent;color:var(--text-dim);cursor:pointer;font-size:.82rem;
+  font-family:inherit;transition:all .15s;}
+.btn:hover{border-color:var(--border-hi);color:var(--text);}
+.btn-sm{padding:.3rem .7rem;font-size:.76rem;}
+.btn-danger{border-color:var(--err);color:var(--err);}
+.btn-danger:hover{background:rgba(231,76,60,.12);}
+
+/* ── TÉMA ── */
+.theme-bar{display:flex;gap:6px;align-items:center;}
+.theme-btn{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:border-color .2s;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;right:1.2rem;width:10px;height:10px;
+  border-radius:50%;background:var(--done);box-shadow:0 0 6px var(--done);
+  animation:pulse 2s ease-in-out infinite;cursor:pointer;}
+.status-dot.red{background:var(--err);box-shadow:0 0 6px var(--err);
+  animation:pulse-fast .6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes pulse-fast{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── FOOTER ── */
+.footer{text-align:center;padding:2rem;font-size:.73rem;color:var(--text-muted);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <span style="font-size:1.3rem;">⚡</span>
+    <div>
+      <h1>CRT Ajánlatsegéd</h1>
+      <div class="sub">Civil Rendszertechnika Kft.</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <div class="user-pill">
+      <span id="topUser">–</span>
+      <span class="role" id="topRole">–</span>
+    </div>
+    <button class="btn btn-sm btn-danger" onclick="doLogout()">Kilépés</button>
+  </div>
+</div>
+
+<div class="wrapper">
+
+  <div class="greeting">
+    <h2 id="greetMsg">Jó napot!</h2>
+    <p>Válassz az alábbi funkciók közül.</p>
+  </div>
+
+  <!-- Gyors státusz -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-chip"><div class="chip-dot" id="chipServer"></div><span id="chipServerLbl">Szerver…</span></div>
+    <div class="status-chip"><div class="chip-dot" id="chipDB"></div><span id="chipDBLbl">Adatbázis…</span></div>
+    <div class="status-chip"><div class="chip-dot" id="chipNTP"></div><span id="chipNTPLbl">NTP…</span></div>
+  </div>
+
+  <!-- Főfunkciók -->
+  <div class="section-title">Fő funkciók</div>
+  <div class="grid">
+
+    <a class="menu-card" href="ajanlatkezelo.html">
+      <span class="card-badge badge-new">Elérhető</span>
+      <span class="card-icon">📋</span>
+      <div class="card-title">Ajánlatkészítő</div>
+      <div class="card-desc">Új ajánlat indítása, meglévő folytatása. AI-alapú árkitöltés.</div>
+    </a>
+
+    <a class="menu-card" href="cikktorzs.html">
+      <span class="card-badge badge-new">Elérhető</span>
+      <span class="card-icon">📦</span>
+      <div class="card-title">Cikktörzs</div>
+      <div class="card-desc">Termékek és tevékenységek kezelése, feltöltés, AI azonosítás.</div>
+    </a>
+
+    <a class="menu-card" href="arak.html">
+      <span class="card-badge badge-new">Elérhető</span>
+      <span class="card-icon">💰</span>
+      <div class="card-title">Árak</div>
+      <div class="card-desc">Árlista megtekintés, árfrissítés, összehasonlítás.</div>
+    </a>
+
+    <a class="menu-card" href="webes_arak.html">
+      <span class="card-badge badge-new">Elérhető</span>
+      <span class="card-icon">🌐</span>
+      <div class="card-title">Webes árak</div>
+      <div class="card-desc">Nagykereskedői árfigyelő, automatikus scraping.</div>
+    </a>
+
+    <a class="menu-card" href="rajz_elemzo.html">
+      <span class="card-badge badge-new">Új · v0.9</span>
+      <span class="card-icon">🗺</span>
+      <div class="card-title">Rajz / Képelemző</div>
+      <div class="card-desc">Tervrajz és fotó elemzés LLaVA Vision alapján – termékek automatikus felismerése.</div>
+    </a>
+
+    <a class="menu-card" href="lora.html">
+      <span class="card-badge badge-new">Új · v1.0</span>
+      <span class="card-icon">🧠</span>
+      <div class="card-title">LoRA Finomhangolás</div>
+      <div class="card-desc">Golden példatárból egyedi AI modell betanítása – pontosabb azonosítás CRT-specifikus tételekre.</div>
+    </a>
+
+  </div>
+
+  <!-- Beállítások / napló -->
+  <div class="section-title">Eszközök</div>
+  <div class="grid">
+
+    <a class="menu-card" href="beallitasok.html">
+      <span class="card-badge badge-new">Elérhető</span>
+      <span class="card-icon">⚙️</span>
+      <div class="card-title">Beállítások</div>
+      <div class="card-desc">API kulcsok, adatforrások, SMTP, PIN csere.</div>
+    </a>
+
+    <a class="menu-card" href="naplok.html">
+      <span class="card-badge badge-new">Elérhető</span>
+      <span class="card-icon">📊</span>
+      <div class="card-title">Naplók</div>
+      <div class="card-desc">Tevékenység napló, auditok, AI hívások.</div>
+    </a>
+
+  </div>
+
+  <!-- Admin (csak adminnak) -->
+  <div class="section-title" id="adminSection" style="display:none;">Admin</div>
+  <div class="grid" id="adminGrid" style="display:none;">
+
+    <a class="menu-card admin-only" href="admin.html">
+      <span class="card-badge badge-admin">Admin</span>
+      <span class="card-icon">🖥️</span>
+      <div class="card-title">Rendszeradmin</div>
+      <div class="card-desc">Szerver kezelés, felhasználók, konfiguráció.</div>
+    </a>
+
+    <a class="menu-card admin-only" href="kezelőpult_v2.html">
+      <span class="card-badge badge-admin">Dev</span>
+      <span class="card-icon">🔧</span>
+      <div class="card-title">Diagnosztika</div>
+      <div class="card-desc">Fejlesztői kezelőpult, modulállapotok, témaváltó.</div>
+    </a>
+
+    <a class="menu-card admin-only" href="widget.html" target="_blank">
+      <span class="card-badge badge-admin">Új</span>
+      <span class="card-icon">📡</span>
+      <div class="card-title">Státusz widget</div>
+      <div class="card-desc">Élő állapotjelző – API, DB, Ollama, ChromaDB.</div>
+    </a>
+
+  </div>
+
+</div><!-- /wrapper -->
+
+<div class="footer">CRT Ajánlatsegéd v0.9 · Civil Rendszertechnika Kft.</div>
+
+<!-- Státusz dot -->
+<div class="status-dot" id="statusDot" title="Szerver állapot"></div>
+
+<script>
+const API = 'http://localhost:8000';
+
+function getToken() { return localStorage.getItem('crt-token') || ''; }
+function authH()    { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+
+// ── AUTH ─────────────────────────────────────────────────────
+function checkAuth() {
+  const token = getToken();
+  if (!token) { window.location.href = 'login.html'; return; }
+  const user = localStorage.getItem('crt-user') || '–';
+  const role = localStorage.getItem('crt-role')  || 'user';
+  document.getElementById('topUser').textContent = user;
+  document.getElementById('topRole').textContent = role.toUpperCase();
+
+  // Üdvözlő
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Jó reggelt' : h < 18 ? 'Jó napot' : 'Jó estét';
+  document.getElementById('greetMsg').textContent = `${greet}, ${user}!`;
+
+  // Admin kártyák
+  if (role === 'admin') {
+    document.getElementById('adminSection').style.display = '';
+    document.getElementById('adminGrid').style.display    = '';
+  }
+}
+checkAuth();
+
+// ── LOGOUT ───────────────────────────────────────────────────
+async function doLogout() {
+  try { await fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}); } catch{}
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href = 'login.html';
+}
+
+// ── TÉMÁK ────────────────────────────────────────────────────
+const THEMES = ['ejszaka','ocean','forest','steel'];
+const themeBar = document.getElementById('themeBar');
+THEMES.forEach(t => {
+  const b = document.createElement('button');
+  b.className = 'theme-btn'; b.dataset.t = t; b.title = t;
+  b.onclick = () => setTheme(t);
+  themeBar.appendChild(b);
+});
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('crt-theme', t);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.t===t));
+}
+(function(){ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+
+// ── STÁTUSZ ──────────────────────────────────────────────────
+function setChip(dotId, lblId, ok, label) {
+  document.getElementById(dotId).className = `chip-dot ${ok ? 'green' : 'red'}`;
+  document.getElementById(lblId).textContent = label;
+}
+
+async function checkStatus() {
+  const dot = document.getElementById('statusDot');
+  try {
+    const res = await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d   = await res.json();
+    const ok  = d.status === 'green';
+    dot.className = ok ? 'status-dot' : 'status-dot red';
+    dot.title     = ok ? `Szerver OK – ${d.time}` : `Hiba: ${JSON.stringify(d.checks)}`;
+    setChip('chipServer','chipServerLbl', true,         'Szerver OK');
+    setChip('chipDB',    'chipDBLbl',     d.checks.db,  d.checks.db  ? 'Adatbázis OK' : 'DB hiba');
+    setChip('chipNTP',   'chipNTPLbl',    d.checks.ntp, d.checks.ntp ? 'NTP OK'       : 'NTP hiba');
+  } catch {
+    dot.className = 'status-dot red';
+    dot.title     = 'Szerver nem elérhető';
+    setChip('chipServer','chipServerLbl', false, 'Szerver nem elérhető');
+    setChip('chipDB',    'chipDBLbl',     false, '–');
+    setChip('chipNTP',   'chipNTPLbl',    false, '–');
+  }
+}
+
+checkStatus();
+setInterval(checkStatus, 30000);
+</script>
+</body>
+</html>

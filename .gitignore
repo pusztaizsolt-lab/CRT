@@ -25,3 +25,29 @@ files.zip
 
 # Telepito script - csak egyszer kell
 migrate_to_drive.ps1
+
+# Titkos kulcsok - SOHA ne kerüljön repoba
+.env
+*.env
+
+# Futásidejű logok
+backend.log
+backend.err
+logs/
+
+# PostgreSQL adatfájlok
+db/data/
+db/pgsql16/
+
+# LLM modellek (túl nagy)
+models/
+
+# Feltöltött fájlok
+uploads/
+
+# WSL image
+wsl/
+
+# Teszt eredmények
+_test/sim_last.txt
+_test/*.txt

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Rendszeradmin</title>
+<style>
+[data-theme="ejszaka"] {
+  --bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;
+  --accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;
+  --text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+[data-theme="ocean"] {
+  --bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;
+  --accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;
+  --text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+[data-theme="forest"] {
+  --bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;
+  --accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;
+  --text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+[data-theme="steel"] {
+  --bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;
+  --accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;
+  --text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.8rem 1.5rem;border-bottom:1px solid var(--border);
+  background:var(--bg-card);position:sticky;top:0;z-index:50;
+}
+.topbar-left{display:flex;align-items:center;gap:.8rem;}
+.topbar h1{font-size:1rem;font-weight:700;letter-spacing:.02em;}
+.badge{font-size:.7rem;background:var(--accent-dim);color:var(--accent);
+  border:1px solid var(--accent);padding:.15rem .5rem;border-radius:99px;font-weight:600;}
+.topbar-right{display:flex;align-items:center;gap:.8rem;}
+.user-chip{font-size:.8rem;color:var(--text-dim);}
+.user-chip strong{color:var(--text);}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 53px);}
+.sidebar{border-right:1px solid var(--border);padding:1rem 0;background:var(--bg-card);}
+.sidebar-nav{list-style:none;}
+.nav-item{padding:.6rem 1.2rem;cursor:pointer;font-size:.85rem;color:var(--text-dim);
+  border-left:3px solid transparent;transition:all .15s;display:flex;align-items:center;gap:.6rem;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:var(--accent-dim);}
+.nav-sep{border-top:1px solid var(--border);margin:.5rem 0;}
+
+/* ── TARTALOM ── */
+.content{padding:1.5rem;overflow-y:auto;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* ── KÁRTYÁK ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1rem;}
+.card h2{font-size:.95rem;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
+.card-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1rem;}
+
+/* ── STAT KÁRTYÁK ── */
+.stat{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem;text-align:center;}
+.stat .val{font-size:1.8rem;font-weight:700;color:var(--accent);}
+.stat .lbl{font-size:.75rem;color:var(--text-muted);margin-top:.2rem;}
+
+/* ── SZERVER PANEL ── */
+.srv-status{display:flex;align-items:center;gap:1rem;padding:.8rem;
+  border:1px solid var(--border);border-radius:8px;margin-bottom:1rem;}
+.srv-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.srv-dot.green{background:var(--done);box-shadow:0 0 6px var(--done);}
+.srv-dot.red{background:var(--err);box-shadow:0 0 6px var(--err);}
+.srv-info{flex:1;}
+.srv-info .srv-name{font-weight:600;font-size:.9rem;}
+.srv-info .srv-meta{font-size:.75rem;color:var(--text-muted);}
+.srv-btns{display:flex;gap:.5rem;}
+
+/* ── GOMBOK ── */
+.btn{padding:.5rem 1rem;border:1px solid var(--border);border-radius:7px;
+  background:transparent;color:var(--text-dim);cursor:pointer;font-size:.82rem;
+  font-family:inherit;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+.btn-danger{border-color:var(--err);color:var(--err);}
+.btn-danger:hover:not(:disabled){background:rgba(231,76,60,.12);}
+.btn-warn{border-color:var(--warn);color:var(--warn);}
+.btn-warn:hover:not(:disabled){background:rgba(245,166,35,.1);}
+.btn-sm{padding:.3rem .7rem;font-size:.76rem;}
+
+/* ── TÁBLÁZAT ── */
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:.82rem;}
+th{background:var(--bg-deep);color:var(--text-muted);font-weight:600;
+  padding:.6rem .8rem;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:.55rem .8rem;border-bottom:1px solid var(--border);color:var(--text-dim);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+/* ── BADGE-EK ── */
+.role-badge{font-size:.7rem;padding:.15rem .45rem;border-radius:99px;font-weight:600;}
+.role-admin{background:rgba(124,106,247,.2);color:var(--accent);border:1px solid var(--accent);}
+.role-user{background:rgba(62,207,142,.15);color:var(--done);border:1px solid var(--done);}
+.status-badge{font-size:.7rem;padding:.15rem .45rem;border-radius:99px;font-weight:600;}
+.status-ok{background:rgba(62,207,142,.1);color:var(--done);border:1px solid var(--done);}
+.status-locked{background:rgba(231,76,60,.12);color:var(--err);border:1px solid var(--err);}
+.status-inactive{background:rgba(90,90,122,.2);color:var(--text-muted);border:1px solid var(--border);}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:none;align-items:center;justify-content:center;z-index:100;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg-card);border:1px solid var(--border-hi);
+  border-radius:14px;padding:1.5rem;width:100%;max-width:420px;}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:1.2rem;}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:.78rem;color:var(--text-dim);margin-bottom:.35rem;}
+.field input,.field select{
+  width:100%;background:var(--bg-deep);border:1px solid var(--border);
+  border-radius:7px;padding:.55rem .8rem;color:var(--text);font-size:.88rem;
+  outline:none;font-family:inherit;transition:border-color .2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.modal-btns{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem;}
+
+/* ── ÜZENET ── */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
+  background:var(--bg-card);border:1px solid var(--border-hi);
+  border-radius:8px;padding:.6rem 1.2rem;font-size:.83rem;color:var(--text);
+  box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:200;
+  opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.ok  {border-color:var(--done);color:var(--done);}
+.toast.err {border-color:var(--err); color:var(--err);}
+
+/* ── FORM GRP ── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+
+/* ── LOG ── */
+.log-box{background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;
+  padding:.8rem;font-family:'Consolas','Courier New',monospace;font-size:.76rem;
+  color:var(--text-muted);max-height:320px;overflow-y:auto;line-height:1.6;}
+.log-box .log-ok  {color:var(--done);}
+.log-box .log-err {color:var(--err);}
+.log-box .log-warn{color:var(--warn);}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;right:1.2rem;width:10px;height:10px;
+  border-radius:50%;background:var(--done);box-shadow:0 0 6px var(--done);
+  animation:pulse 2s ease-in-out infinite;cursor:pointer;}
+.status-dot.red{background:var(--err);box-shadow:0 0 6px var(--err);
+  animation:pulse-fast .6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes pulse-fast{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── TÉMA ── */
+.theme-bar{display:flex;gap:6px;align-items:center;}
+.theme-btn{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:border-color .2s;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+
+/* ── CONFIG MEZŐ ── */
+.cfg-row{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;}
+.cfg-row label{width:160px;font-size:.8rem;color:var(--text-dim);flex-shrink:0;}
+.cfg-row input{flex:1;background:var(--bg-deep);border:1px solid var(--border);
+  border-radius:7px;padding:.45rem .7rem;color:var(--text);font-size:.83rem;
+  outline:none;font-family:inherit;transition:border-color .2s;}
+.cfg-row input:focus{border-color:var(--accent);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span>⚡</span>
+    <h1>CRT Ajánlatsegéd</h1>
+    <span class="badge">ADMIN</span>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <div class="user-chip">Bejelentkezve: <strong id="topUser">–</strong></div>
+    <button class="btn btn-sm btn-danger" onclick="doLogout()">Kilépés</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <ul class="sidebar-nav" id="nav">
+      <li class="nav-item active" data-page="overview" onclick="navTo('overview',this)">📊 Áttekintés</li>
+      <li class="nav-item" data-page="server"   onclick="navTo('server',this)">🖥️ Szerver</li>
+      <li class="nav-sep"></li>
+      <li class="nav-item" data-page="users"    onclick="navTo('users',this)">👤 Felhasználók</li>
+      <li class="nav-sep"></li>
+      <li class="nav-item" data-page="config"   onclick="navTo('config',this)">⚙️ Konfiguráció</li>
+      <li class="nav-item" data-page="logs"     onclick="navTo('logs',this)">📋 Naplók</li>
+      <li class="nav-sep"></li>
+      <li class="nav-item" onclick="window.location.href='fomenu.html'">🏠 Főmenü</li>
+    </ul>
+  </div>
+
+  <!-- TARTALOM -->
+  <div class="content">
+
+    <!-- ÁTTEKINTÉS -->
+    <div class="page active" id="page-overview">
+      <h2 style="margin-bottom:1rem;font-size:1.05rem;">Áttekintés</h2>
+      <div class="card-row" id="statsRow">
+        <div class="stat"><div class="val" id="statUsers">–</div><div class="lbl">Felhasználó</div></div>
+        <div class="stat"><div class="val" id="statDB">–</div><div class="lbl">DB állapot</div></div>
+        <div class="stat"><div class="val" id="statVer">–</div><div class="lbl">Verzió</div></div>
+        <div class="stat"><div class="val" id="statTime">–</div><div class="lbl">Szerver idő</div></div>
+      </div>
+      <div class="card">
+        <h2>🖥️ Szerver állapot</h2>
+        <div class="srv-status">
+          <div class="srv-dot green" id="ovDot"></div>
+          <div class="srv-info">
+            <div class="srv-name">CRT Backend</div>
+            <div class="srv-meta" id="ovMeta">Ellenőrzés…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SZERVER -->
+    <div class="page" id="page-server">
+      <h2 style="margin-bottom:1rem;font-size:1.05rem;">Szerver kezelés</h2>
+      <div class="card">
+        <h2>🖥️ Folyamatok</h2>
+        <div class="srv-status">
+          <div class="srv-dot green" id="srvDot"></div>
+          <div class="srv-info">
+            <div class="srv-name">FastAPI / Uvicorn</div>
+            <div class="srv-meta" id="srvMeta">–</div>
+          </div>
+          <div class="srv-btns">
+            <button class="btn btn-warn btn-sm" onclick="restartServer()">↺ Újraindítás</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>📡 Kapcsolatok</h2>
+        <div id="connChecks" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+      </div>
+    </div>
+
+    <!-- FELHASZNÁLÓK -->
+    <div class="page" id="page-users">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="font-size:1.05rem;">Felhasználók</h2>
+        <button class="btn btn-primary btn-sm" onclick="openNewUser()">+ Új felhasználó</button>
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Név</th><th>Email</th><th>Szerepkör</th>
+                <th>Állapot</th><th>Kísérletek</th><th>Műveletek</th>
+              </tr>
+            </thead>
+            <tbody id="usersTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- KONFIGURÁCIÓ -->
+    <div class="page" id="page-config">
+      <h2 style="margin-bottom:1rem;font-size:1.05rem;">Rendszerkonfiguráció</h2>
+      <div class="card">
+        <h2>📧 SMTP – Email kiszolgáló</h2>
+        <div id="smtpForm">
+          <div class="cfg-row"><label>SMTP szerver</label><input id="smtp_host" placeholder="smtp.gmail.com"></div>
+          <div class="cfg-row"><label>Port</label><input id="smtp_port" placeholder="587" style="max-width:100px;"></div>
+          <div class="cfg-row"><label>Felhasználó</label><input id="smtp_user" placeholder="noreply@cegem.hu"></div>
+          <div class="cfg-row"><label>Jelszó (app pw)</label><input id="smtp_pass" type="password" placeholder="••••••••"></div>
+          <div class="cfg-row"><label>Feladó cím</label><input id="smtp_from" placeholder="CRT Ajánlatsegéd &lt;noreply@cegem.hu&gt;"></div>
+        </div>
+        <div style="display:flex;gap:.6rem;margin-top:1rem;">
+          <button class="btn btn-primary" onclick="saveSmtp()">Mentés</button>
+          <button class="btn" onclick="testSmtp()">📨 Email teszt küldés</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>🤖 Claude API</h2>
+        <div class="cfg-row"><label>API kulcs</label><input id="claude_api_key" type="password" placeholder="sk-ant-…"></div>
+        <button class="btn btn-primary" style="margin-top:.8rem;" onclick="saveClaudeKey()">Mentés</button>
+      </div>
+    </div>
+
+    <!-- NAPLÓK -->
+    <div class="page" id="page-logs">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="font-size:1.05rem;">Audit napló</h2>
+        <button class="btn btn-sm" onclick="loadLogs()">↺ Frissítés</button>
+      </div>
+      <div class="card" style="padding:0;">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Idő</th><th>Felhasználó</th><th>Esemény</th><th>Entitás</th><th>IP</th></tr></thead>
+            <tbody id="logsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+
+<!-- ── MODÁLIS – ÚJ USER ── -->
+<div class="overlay" id="modalNewUser">
+  <div class="modal">
+    <h3>Új felhasználó</h3>
+    <div class="field"><label>Felhasználónév</label><input id="nu_user" placeholder="feri12" autocomplete="off"></div>
+    <div class="form-row">
+      <div class="field"><label>PIN (6 számjegy)</label><input id="nu_pin" type="password" maxlength="6" placeholder="••••••"></div>
+      <div class="field"><label>Szerepkör</label>
+        <select id="nu_role"><option value="user">Felhasználó</option><option value="admin">Admin</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Email cím (2FA kódhoz)</label><input id="nu_email" type="email" placeholder="feri@cegem.hu"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalNewUser')">Mégse</button>
+      <button class="btn btn-primary" onclick="createUser()">Létrehozás</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODÁLIS – PIN RESET ── -->
+<div class="overlay" id="modalResetPin">
+  <div class="modal">
+    <h3>PIN módosítás</h3>
+    <input type="hidden" id="rp_uid">
+    <div class="field"><label>Felhasználó</label><input id="rp_uname" disabled></div>
+    <div class="field"><label>Új PIN (6 számjegy)</label><input id="rp_pin" type="password" maxlength="6" placeholder="••••••"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalResetPin')">Mégse</button>
+      <button class="btn btn-primary" onclick="submitResetPin()">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Státusz dot -->
+<div class="status-dot" id="statusDot" title="Szerver állapot"></div>
+
+<script>
+const API = 'http://localhost:8000';
+
+// ── AUTH ─────────────────────────────────────────────────────
+function getToken() { return localStorage.getItem('crt-token') || ''; }
+function authH()    { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+
+function checkAuth() {
+  const token = getToken();
+  const role  = localStorage.getItem('crt-role');
+  if (!token || role !== 'admin') {
+    window.location.href = 'login.html';
+  }
+  document.getElementById('topUser').textContent = localStorage.getItem('crt-user') || '–';
+}
+checkAuth();
+
+// ── TÉMÁK ────────────────────────────────────────────────────
+const THEMES = ['ejszaka','ocean','forest','steel'];
+const themeBar = document.getElementById('themeBar');
+THEMES.forEach(t => {
+  const b = document.createElement('button');
+  b.className = 'theme-btn'; b.dataset.t = t; b.title = t;
+  b.onclick = () => setTheme(t);
+  themeBar.appendChild(b);
+});
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('crt-theme', t);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.t===t));
+}
+(function(){ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+
+// ── NAVIGÁCIÓ ─────────────────────────────────────────────────
+function navTo(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if (el) el.classList.add('active');
+  if (page === 'users')    loadUsers();
+  if (page === 'logs')     loadLogs();
+  if (page === 'overview') loadOverview();
+  if (page === 'server')   loadServerStatus();
+  if (page === 'config')   loadConfig();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+let _toastTimer = null;
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className='toast', 2500);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openNewUser()  {
+  ['nu_user','nu_email'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('nu_pin').value='';
+  document.getElementById('nu_role').value='user';
+  document.getElementById('modalNewUser').classList.add('open');
+  document.getElementById('nu_user').focus();
+}
+
+// ── LOGOUT ────────────────────────────────────────────────────
+async function doLogout() {
+  try { await fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}); } catch{}
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href = 'login.html';
+}
+
+// ── STÁTUSZ WIDGET ────────────────────────────────────────────
+async function checkStatus() {
+  const dot = document.getElementById('statusDot');
+  try {
+    const res = await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d   = await res.json();
+    dot.className  = d.status==='green' ? 'status-dot' : 'status-dot red';
+    dot.title      = d.status==='green' ? `Szerver OK – ${d.time}` : `Hiba: ${JSON.stringify(d.checks)}`;
+  } catch {
+    dot.className  = 'status-dot red';
+    dot.title      = 'Szerver nem elérhető';
+  }
+}
+
+// ── ÁTTEKINTÉS ────────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const res = await fetch(`${API}/health`,{headers:authH()});
+    const d   = await res.json();
+    document.getElementById('statDB').textContent  = d.db==='ok' ? '✓ OK' : '✗ Hiba';
+    document.getElementById('statVer').textContent = d.version;
+    document.getElementById('statTime').textContent = d.ntp;
+    document.getElementById('ovDot').className = d.db==='ok' ? 'srv-dot green' : 'srv-dot red';
+    document.getElementById('ovMeta').textContent = `DB: ${d.db} · NTP: ${d.ntp}`;
+  } catch {
+    document.getElementById('ovMeta').textContent = 'Szerver nem elérhető';
+    document.getElementById('ovDot').className = 'srv-dot red';
+  }
+  try {
+    const r2 = await fetch(`${API}/auth/admin/users`,{headers:authH()});
+    if (r2.ok) {
+      const d2 = await r2.json();
+      document.getElementById('statUsers').textContent = d2.users.length;
+    }
+  } catch {}
+}
+
+// ── SZERVER ÁLLAPOT ───────────────────────────────────────────
+async function loadServerStatus() {
+  const dot  = document.getElementById('srvDot');
+  const meta = document.getElementById('srvMeta');
+  const cc   = document.getElementById('connChecks');
+  try {
+    const res = await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d   = await res.json();
+    dot.className = d.status==='green' ? 'srv-dot green' : 'srv-dot red';
+    meta.textContent = `Állapot: ${d.status} · Idő: ${d.time}`;
+    cc.innerHTML = Object.entries(d.checks).map(([k,v])=>
+      `<div class="srv-status" style="margin:0;padding:.5rem .8rem;">
+        <div class="srv-dot ${v?'green':'red'}"></div>
+        <div class="srv-info"><div class="srv-name">${k}</div></div>
+        <span style="font-size:.78rem;color:${v?'var(--done)':'var(--err)'};">${v?'OK':'Hiba'}</span>
+       </div>`
+    ).join('');
+  } catch {
+    dot.className = 'srv-dot red';
+    meta.textContent = 'Szerver nem elérhető';
+  }
+}
+
+function restartServer() {
+  toast('Újraindítás csak manuálisan lehetséges (uvicorn reload aktív fejlesztési módban)', 'err');
+}
+
+// ── FELHASZNÁLÓK ──────────────────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('usersTbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Betöltés…</td></tr>';
+  try {
+    const res = await fetch(`${API}/auth/admin/users`,{headers:authH()});
+    if (!res.ok) throw new Error(res.status);
+    const {users} = await res.json();
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nincs felhasználó</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => {
+      const locked   = u.locked_until && new Date(u.locked_until) > new Date();
+      const statusCl = !u.active ? 'status-inactive' : locked ? 'status-locked' : 'status-ok';
+      const statusTx = !u.active ? 'Inaktív' : locked ? 'Zárolva' : 'Aktív';
+      return `<tr>
+        <td><strong>${esc(u.username)}</strong></td>
+        <td>${esc(u.email||'–')}</td>
+        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+        <td><span class="status-badge ${statusCl}">${statusTx}</span></td>
+        <td style="text-align:center;">${u.attempt_count||0}</td>
+        <td>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+            ${locked||!u.active
+              ? `<button class="btn btn-sm btn-warn" onclick="unlockUser(${u.id})">Felold</button>`
+              : ''}
+            <button class="btn btn-sm" onclick="openResetPin(${u.id},'${esc(u.username)}')">PIN</button>
+            <button class="btn btn-sm ${u.active?'btn-danger':''}"
+              onclick="toggleActive(${u.id},${u.active})">${u.active?'Tiltás':'Aktivál'}</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--err);">Hiba: ${e.message}</td></tr>`;
+  }
+}
+
+async function createUser() {
+  const body = {
+    username: document.getElementById('nu_user').value.trim(),
+    pin:      document.getElementById('nu_pin').value.trim(),
+    email:    document.getElementById('nu_email').value.trim(),
+    role:     document.getElementById('nu_role').value,
+  };
+  if (!body.username||body.pin.length!==6||!body.email){
+    toast('Töltsd ki az összes mezőt (PIN: 6 számjegy)','err'); return;
+  }
+  try {
+    const res = await fetch(`${API}/auth/admin/users`,{method:'POST',headers:authH(),body:JSON.stringify(body)});
+    const d   = await res.json();
+    if (res.ok) {
+      toast(`✓ Felhasználó létrehozva: ${body.username}`);
+      closeModal('modalNewUser');
+      loadUsers();
+    } else {
+      toast(d.detail||'Hiba','err');
+    }
+  } catch { toast('Szerver hiba','err'); }
+}
+
+function openResetPin(uid, uname) {
+  document.getElementById('rp_uid').value   = uid;
+  document.getElementById('rp_uname').value = uname;
+  document.getElementById('rp_pin').value   = '';
+  document.getElementById('modalResetPin').classList.add('open');
+  document.getElementById('rp_pin').focus();
+}
+
+async function submitResetPin() {
+  const uid = document.getElementById('rp_uid').value;
+  const pin = document.getElementById('rp_pin').value.trim();
+  if (pin.length!==6||!/^\d+$/.test(pin)){ toast('PIN: pontosan 6 számjegy','err'); return; }
+  try {
+    const res = await fetch(`${API}/auth/admin/users/${uid}/pin`,
+      {method:'PATCH',headers:authH(),body:JSON.stringify({pin})});
+    if (res.ok) { toast('✓ PIN módosítva'); closeModal('modalResetPin'); }
+    else { const d=await res.json(); toast(d.detail||'Hiba','err'); }
+  } catch { toast('Szerver hiba','err'); }
+}
+
+async function unlockUser(uid) {
+  try {
+    const res = await fetch(`${API}/auth/admin/users/${uid}/unlock`,{method:'POST',headers:authH()});
+    if (res.ok) { toast('✓ Felhasználó feloldva'); loadUsers(); }
+    else { const d=await res.json(); toast(d.detail||'Hiba','err'); }
+  } catch { toast('Szerver hiba','err'); }
+}
+
+async function toggleActive(uid, current) {
+  try {
+    const res = await fetch(`${API}/auth/admin/users/${uid}`,
+      {method:'PATCH',headers:authH(),body:JSON.stringify({active:!current})});
+    if (res.ok) { toast(`✓ Felhasználó ${current?'tiltva':'aktiválva'}`); loadUsers(); }
+    else { const d=await res.json(); toast(d.detail||'Hiba','err'); }
+  } catch { toast('Szerver hiba','err'); }
+}
+
+// ── KONFIGURÁCIÓ ──────────────────────────────────────────────
+async function loadConfig() {
+  // SMTP értékeket a szerver nem ad vissza plain-text-ben – csak host/port/user visible
+  // pass és kulcsok nem kerülnek ki az API-ból, placeholderrel jelezve hogy be van állítva
+}
+
+async function saveSmtp() {
+  const fields = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from'];
+  // Közvetlen config PUT endpoint – a whitepaperban v0.5-re tervezve
+  // Egyelőre csak értesítést adunk
+  toast('SMTP mentés: az admin API konfig endpoint v0.5-ben kerül be', 'err');
+}
+
+async function testSmtp() {
+  toast('Email teszt: SMTP config API v0.5-ben kerül be', 'err');
+}
+
+async function saveClaudeKey() {
+  toast('Claude API kulcs mentés: config endpoint v0.5-ben kerül be', 'err');
+}
+
+// ── NAPLÓK ────────────────────────────────────────────────────
+async function loadLogs() {
+  const tbody = document.getElementById('logsTbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Betöltés…</td></tr>';
+  // Audit log endpoint a v0.5 migrációval kerül be
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Audit log API endpoint v0.5-ben kerül be</td></tr>';
+}
+
+// ── SEGÉDFÜGGVÉNY ─────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+checkStatus();
+setInterval(checkStatus, 30000);
+loadOverview();
+</script>
+</body>
+</html>

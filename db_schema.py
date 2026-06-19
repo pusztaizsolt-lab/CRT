@@ -1,237 +1,194 @@
 """
-CRT Ajánlatsegéd – Adatbázis Séma v0.1
-Futtasd: py -3.11 db_schema.py
-Létrehozza az összes táblát a crt adatbázisban
+CRT Ajanlatseged - Adatbazis Schema v1.0
+Letrehozza az alap tablakat (users, products, prices, stb.)
+A quotes, quote_lines, web_*, golden_examples, chroma_index, lora_jobs
+tablakat a v05/v07/v08 migraciok hozzak letre.
+
+Futtatás: py -3.11 db_schema.py
 """
 from sqlalchemy import (
     create_engine, text,
     Column, String, Integer, Float, Boolean,
-    DateTime, Text, ForeignKey, Enum
+    DateTime, Text, ForeignKey, ARRAY
 )
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
+from sqlalchemy.orm import declarative_base
+import os
 import logging
+from env_detect import get_db_url
 
-# ── KONFIG ────────────────────────────────────────────────
-DB_URL = "postgresql://crt_user:crt2026@localhost:5432/crt"
+DB_URL = get_db_url()
 engine = create_engine(DB_URL, echo=False)
 Base   = declarative_base()
 log    = logging.getLogger("CRT.schema")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
-# ── TÁBLÁK ────────────────────────────────────────────────
+# -- USERS ---------------------------------------------------------
+# Modern schema: id SERIAL PK, username VARCHAR UNIQUE
+# (regi user_id VARCHAR PK schema mar nem hasznalt)
 
 class User(Base):
-    """Felhasználók – PIN kód, jogosultság"""
     __tablename__ = "users"
-    user_id      = Column(String(16),  primary_key=True)
-    pin_hash     = Column(String(128), nullable=False)
-    role         = Column(String(20),  default="user")   # user / admin
-    created_at   = Column(DateTime,    nullable=False)
-    last_login   = Column(DateTime)
-    active       = Column(Boolean,     default=True)
+    id            = Column(Integer,     primary_key=True, autoincrement=True)
+    username      = Column(String(100), unique=True, nullable=False)
+    pin_hash      = Column(String(128), nullable=False)
+    email         = Column(String(255))
+    role          = Column(String(20),  nullable=False, default="user")
+    active        = Column(Boolean,     nullable=False, default=True)
+    created_at    = Column(DateTime,    nullable=False)
+    last_login    = Column(DateTime)
+    locked_until  = Column(DateTime)
+    attempt_count = Column(Integer,     nullable=False, default=0)
 
+# -- AUDIT LOG -----------------------------------------------------
 class AuditLog(Base):
-    """Audit napló – minden művelet"""
     __tablename__ = "audit_log"
-    log_id       = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id      = Column(String(16),  nullable=False)
+    log_id       = Column(String(36),  primary_key=True)
+    user_id      = Column(String(36),  nullable=False)
     action       = Column(String(100), nullable=False)
     target       = Column(String(200))
     detail       = Column(Text)
+    description  = Column(Text)
+    entity_id    = Column(String(128))
     timestamp    = Column(DateTime,    nullable=False)
+    ip_address   = Column(String(45))
     ip           = Column(String(50))
 
+# -- CATEGORIES ----------------------------------------------------
 class Category(Base):
-    """Kategória fa – hierarchikus"""
     __tablename__ = "categories"
-    category_id  = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
+    category_id  = Column(String(36),  primary_key=True)
     parent_id    = Column(String(36),  ForeignKey("categories.category_id"), nullable=True)
     name         = Column(String(100), nullable=False)
-    item_class   = Column(String(20),  default="materiális")  # materiális / immateriális
+    item_class   = Column(String(20),  default="materialis")
     sort_order   = Column(Integer,     default=0)
     active       = Column(Boolean,     default=True)
 
+# -- PRODUCTS ------------------------------------------------------
 class Product(Base):
-    """Cikktörzs – materiális termékek"""
     __tablename__ = "products"
-    item_id       = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    crt_code      = Column(String(20),  unique=True)               # CRT-P-000001
-    supplier_code = Column(String(100))                            # kereskedői kód (pl. KKM-12)
-    manufacturer  = Column(String(100))                            # gyártó (pl. Paradox)
-    model         = Column(String(100))                            # típus neve (pl. MG-5050)
-    name          = Column(String(200), nullable=False)            # teljes megnevezés
+    item_id       = Column(String(36),  primary_key=True)
+    crt_code      = Column(String(20),  unique=True)
+    supplier_code = Column(String(100))
+    model         = Column(String(100))
     category_id   = Column(String(36),  ForeignKey("categories.category_id"))
-    unit          = Column(String(20),  default="db")
-    software_flag = Column(Boolean,     default=False)
-    version       = Column(Integer,     default=1)
-    status        = Column(String(20),  default="active")          # active / invalidated / recycled
+    name          = Column(String(200), nullable=False)
+    description   = Column(Text)
+    unit          = Column(String(20))
+    item_class    = Column(String(20),  default="materialis")
+    active        = Column(Boolean,     default=True)
     created_at    = Column(DateTime,    nullable=False)
-    created_by    = Column(String(16))
+    updated_at    = Column(DateTime)
+    tags          = Column(Text)
 
+# -- ACTIVITIES ----------------------------------------------------
 class Activity(Base):
-    """Tevékenységi törzs – immateriális munkák"""
     __tablename__ = "activities"
-    activity_id  = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    crt_code     = Column(String(20),  unique=True)                # CRT-A-000001
-    name         = Column(String(200), nullable=False)
-    category_id  = Column(String(36),  ForeignKey("categories.category_id"))
-    unit_type    = Column(String(20),  default="óra")              # óra / nap / méter / db
-    version      = Column(Integer,     default=1)
-    status       = Column(String(20),  default="active")
-    created_at   = Column(DateTime,    nullable=False)
-    created_by   = Column(String(16))
+    item_id       = Column(String(36),  primary_key=True)
+    crt_code      = Column(String(20),  unique=True)
+    category_id   = Column(String(36),  ForeignKey("categories.category_id"))
+    name          = Column(String(200), nullable=False)
+    description   = Column(Text)
+    unit          = Column(String(20))
+    active        = Column(Boolean,     default=True)
+    created_at    = Column(DateTime,    nullable=False)
+    updated_at    = Column(DateTime)
 
+# -- PRICES --------------------------------------------------------
 class Price(Base):
-    """Árnapló – típus + minőségi szint"""
     __tablename__ = "prices"
-    price_id     = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    item_id      = Column(String(36),  nullable=False)             # → product vagy activity
-    item_class   = Column(String(20),  nullable=False)             # materiális / immateriális
-    price_type   = Column(String(20),  default="lista")            # lista / kisker / nagyker / egyedi
-    price        = Column(Float,       nullable=False)
-    currency     = Column(String(5),   default="HUF")
-    unit         = Column(String(20))
-    supplier     = Column(String(100))
-    source_type  = Column(String(30))  # file_upload / web_auth / web_public / partner_api / manual / editor
-    source_url   = Column(String(500))
-    confidence   = Column(Float,       default=1.0)
-    db_level     = Column(String(20),  default="db1_raw")          # db1_raw / db2_refined / db_master
-    offer_date   = Column(DateTime)
+    price_id     = Column(String(36),  primary_key=True)
+    item_id      = Column(String(36),  nullable=False)
+    item_class   = Column(String(20))
+    price_type   = Column(String(20),  default="lista")
+    net_price    = Column(Float)
+    currency     = Column(String(3),   default="HUF")
+    source_id    = Column(Integer)
+    supplier_code= Column(String(100))
+    valid_from   = Column(DateTime)
+    valid_to     = Column(DateTime)
     db_inserted  = Column(DateTime,    nullable=False)
-    user_id      = Column(String(16))
-    version      = Column(Integer,     default=1)
-    status       = Column(String(20),  default="active")
-
-class Supplier(Base):
-    """Beszállítók / forgalmazók"""
-    __tablename__ = "suppliers"
-    supplier_id  = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    name         = Column(String(100), nullable=False)
-    contact      = Column(String(200))
-    api_url      = Column(String(500))
-    last_sync    = Column(DateTime)
-    active       = Column(Boolean,     default=True)
-
-class Connection(Base):
-    """Kapcsolatok – URL lista, API kulcsok"""
-    __tablename__ = "connections"
-    conn_id      = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    name         = Column(String(100), nullable=False)
-    url          = Column(String(500))
-    url_type     = Column(String(30),  default="preferred_wholesale")
-    credentials  = Column(Text)        # AES-256 titkosítva
-    category     = Column(String(100))
-    active       = Column(Boolean,     default=True)
-    last_sync    = Column(DateTime)
-    created_by   = Column(String(16))
-
-class Quote(Base):
-    """Ajánlat dokumentumok"""
-    __tablename__ = "quotes"
-    quote_id     = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    template_id  = Column(String(50))
-    requester    = Column(String(100))
-    supplier     = Column(String(100))
-    offer_date   = Column(DateTime)
-    db_inserted  = Column(DateTime,    nullable=False)
-    status       = Column(String(20),  default="draft")  # draft / exported / winning / losing
-    total        = Column(Float)
-    total_material  = Column(Float,    default=0)
-    total_activity  = Column(Float,    default=0)
-    prepared_by  = Column(String(16))
+    source       = Column(String(50))
     notes        = Column(Text)
 
-class QuoteCell(Base):
-    """Ajánlat tételek"""
-    __tablename__ = "quote_cells"
-    cell_id      = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    quote_id     = Column(String(36),  ForeignKey("quotes.quote_id"), nullable=False)
-    item_id      = Column(String(36),  nullable=False)
-    item_class   = Column(String(20))  # materiális / immateriális
-    item_name    = Column(String(200))
-    quantity     = Column(Float,       default=1)
-    unit         = Column(String(20))
-    unit_price   = Column(Float)
-    total_price  = Column(Float)
-    source       = Column(String(30))
-    confidence   = Column(Float)
-    age_days     = Column(Integer)
-    cell_status  = Column(String(20))  # green / yellow / red / web
+# -- SUPPLIERS -----------------------------------------------------
+class Supplier(Base):
+    __tablename__ = "suppliers"
+    supplier_id  = Column(String(36),  primary_key=True)
+    name         = Column(String(200), nullable=False)
+    contact_name = Column(String(100))
+    email        = Column(String(200))
+    phone        = Column(String(50))
+    notes        = Column(Text)
+    active       = Column(Boolean,     default=True)
+    created_at   = Column(DateTime)
 
+# -- CONNECTIONS ---------------------------------------------------
+class Connection(Base):
+    __tablename__ = "connections"
+    conn_id      = Column(String(36),  primary_key=True)
+    product_id   = Column(String(36))
+    activity_id  = Column(String(36))
+    relation     = Column(String(50))
+    notes        = Column(Text)
+
+# -- TENDERS -------------------------------------------------------
 class Tender(Base):
-    """Pályázati historikus adatok"""
     __tablename__ = "tenders"
-    tender_id    = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
+    tender_id    = Column(String(36),  primary_key=True)
     category     = Column(String(100))
     winning_price= Column(Float)
     submitted_price = Column(Float)
     tender_date  = Column(DateTime)
-    result       = Column(String(20))  # winning / losing
+    result       = Column(String(20))
     has_detail   = Column(Boolean,     default=False)
     notes        = Column(Text)
 
-class GoldenExample(Base):
-    """Arany Példatár – LoRA tanítóadat"""
-    __tablename__ = "golden_examples"
-    example_id   = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    raw_text     = Column(Text,        nullable=False)   # eredeti bizonytalan szöveg
-    correct_json = Column(Text,        nullable=False)   # helyes JSON válasz
-    source       = Column(String(30))  # human / claude / gemini
-    confidence   = Column(Float)
-    created_at   = Column(DateTime,    nullable=False)
-    created_by   = Column(String(16))
-    used_in_lora = Column(Boolean,     default=False)
-
+# -- RECYCLE BIN ---------------------------------------------------
 class RecycleBin(Base):
-    """Kuka – soft delete"""
     __tablename__ = "recycle_bin"
-    recycle_id   = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
-    item_type    = Column(String(50),  nullable=False)   # product / activity / price / ...
+    recycle_id   = Column(String(36),  primary_key=True)
+    item_type    = Column(String(50),  nullable=False)
     item_id      = Column(String(36),  nullable=False)
-    data_json    = Column(Text,        nullable=False)   # teljes rekord JSON-ban
-    deleted_by   = Column(String(16),  nullable=False)
+    data_json    = Column(Text,        nullable=False)
+    deleted_by   = Column(String(36),  nullable=False)
     deleted_at   = Column(DateTime,    nullable=False)
     restored     = Column(Boolean,     default=False)
 
+# -- SYSTEM CONFIG -------------------------------------------------
 class SystemConfig(Base):
-    """Rendszer beállítások – konzol kód, NTP, stb."""
     __tablename__ = "system_config"
     key          = Column(String(100), primary_key=True)
     value        = Column(Text)
+    description  = Column(Text)
     encrypted    = Column(Boolean,     default=False)
-    updated_by   = Column(String(16))
+    updated_by   = Column(String(36))
     updated_at   = Column(DateTime)
 
-# ── LÉTREHOZÁS ────────────────────────────────────────────
+# -- LETREHOZAS ----------------------------------------------------
 def create_schema():
-    print("\n╔══════════════════════════════════════════╗")
-    print("║   CRT – Adatbázis Séma Létrehozó v0.1   ║")
-    print("╚══════════════════════════════════════════╝\n")
+    print("\nCRT - Adatbazis Schema v1.0 Letrehozo\n")
 
-    tables = [
+    base_tables = [
         "users", "audit_log", "categories",
         "products", "activities", "prices",
-        "suppliers", "connections", "quotes",
-        "quote_cells", "tenders", "golden_examples",
+        "suppliers", "connections", "tenders",
         "recycle_bin", "system_config"
     ]
 
-    print("  Táblák létrehozása...\n")
+    print("  Tablak letrehozasa...\n")
     Base.metadata.create_all(engine)
 
-    # Ellenőrzés
     with engine.connect() as conn:
-        for table in tables:
+        for table in base_tables:
             result = conn.execute(text(
                 f"SELECT COUNT(*) FROM information_schema.tables "
                 f"WHERE table_name='{table}'"
             ))
             exists = result.scalar() > 0
-            print(f"  {'✅' if exists else '❌'}  {table}")
+            print(f"  {'OK' if exists else 'HIBA'}  {table}")
 
-    print(f"\n  🎉 Séma kész! {len(tables)} tábla létrehozva.\n")
+    print(f"\n  Schema kesz! {len(base_tables)} alaptabla.\n")
+    print("  Kovetkezo lepes: migrate.bat (v04 -> v08)\n")
 
 if __name__ == "__main__":
     create_schema()

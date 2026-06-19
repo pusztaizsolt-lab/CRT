@@ -1,23 +1,92 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="hu" data-theme="ejszaka">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRT Ajánlatsegéd – Kezelőpult</title>
     <style>
+        /* ── TÉMA VÁLTOZÓK ──────────────────────────────────── */
+        :root {
+            --bg-deep:    #12121f;
+            --bg-card:    #1c1c30;
+            --border:     #2a2a4a;
+            --border-hi:  #3a3a6a;
+            --accent:     #c8a4f8;
+            --accent-dim: #7c5cbf;
+            --text:       #dde1e7;
+            --text-dim:   #aaa;
+            --text-muted: #777;
+            --text-faint: #666;
+            --text-faint2:#555;
+            --done:       #00b894;
+            --warn:       #f39c12;
+            --err:        #e74c3c;
+            --err-bg:     #2a0f0f;
+            --err-border: #8b1a1a;
+            --err-dark:   #c0392b;
+            --prog-grad:  linear-gradient(90deg, #00b894, #7c5cbf);
+        }
+
+        [data-theme="ocean"] {
+            --bg-deep:    #0a1628;
+            --bg-card:    #0f2040;
+            --border:     #1a3a6a;
+            --border-hi:  #2a5a9a;
+            --accent:     #4fc3f7;
+            --accent-dim: #1976d2;
+            --text:       #e3f2fd;
+            --text-dim:   #90caf9;
+            --text-muted: #5b8fc9;
+            --text-faint: #4a7ab5;
+            --text-faint2:#3a6aa0;
+            --prog-grad:  linear-gradient(90deg, #00b894, #1976d2);
+        }
+
+        [data-theme="forest"] {
+            --bg-deep:    #0a1a0a;
+            --bg-card:    #0f2a0f;
+            --border:     #1a4a1a;
+            --border-hi:  #2a6a2a;
+            --accent:     #66bb6a;
+            --accent-dim: #388e3c;
+            --text:       #e8f5e9;
+            --text-dim:   #a5d6a7;
+            --text-muted: #4caf50;
+            --text-faint: #3a8a3a;
+            --text-faint2:#2d6a2d;
+            --prog-grad:  linear-gradient(90deg, #00b894, #388e3c);
+        }
+
+        [data-theme="steel"] {
+            --bg-deep:    #161820;
+            --bg-card:    #21232e;
+            --border:     #32354a;
+            --border-hi:  #4a4e6a;
+            --accent:     #90caf9;
+            --accent-dim: #5472a0;
+            --text:       #eceff1;
+            --text-dim:   #b0bec5;
+            --text-muted: #7a8599;
+            --text-faint: #5a6677;
+            --text-faint2:#4a5566;
+            --prog-grad:  linear-gradient(90deg, #00b894, #5472a0);
+        }
+
+        /* ── ALAP ────────────────────────────────────────────── */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #12121f;
-            color: #dde1e7;
+            background: var(--bg-deep);
+            color: var(--text);
             min-height: 100vh;
             padding: 24px;
+            transition: background .3s, color .3s;
         }
 
-        /* ── FEJLÉC ─────────────────────────────────────── */
+        /* ── FEJLÉC ──────────────────────────────────────────── */
         .header {
-            background: #1c1c30;
-            border: 1px solid #2a2a4a;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 10px;
             padding: 20px 28px;
             margin-bottom: 20px;
@@ -25,29 +94,9 @@
             justify-content: space-between;
             align-items: center;
         }
-        .header h1 { font-size: 1.4rem; color: #c8a4f8; font-weight: 700; letter-spacing: 1px; }
-        .header .ceg { font-size: 0.78rem; color: #666; margin-top: 3px; }
-        .server-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.8rem;
-            color: #aaa;
-            background: #12121f;
-            border: 1px solid #2a2a4a;
-            padding: 6px 14px;
-            border-radius: 20px;
-        }
-        .dot {
-            width: 9px; height: 9px;
-            border-radius: 50%;
-            background: #e74c3c;
-        }
-        .dot.online  { background: #00b894; animation: blink 2.5s infinite; }
-        .dot.warning { background: #f39c12; animation: blink 1s infinite; }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .header h1 { font-size: 1.4rem; color: var(--accent); font-weight: 700; letter-spacing: 1px; }
+        .header .ceg { font-size: 0.78rem; color: var(--text-faint); margin-top: 3px; }
 
-        /* ── FEJLÉC JOBB OLDAL ───────────────────────────── */
         .header-right {
             display: flex;
             align-items: center;
@@ -56,29 +105,37 @@
             justify-content: flex-end;
         }
 
-        /* DB kijelző */
-        .db-pill {
+        .server-badge, .db-pill {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 0.78rem;
-            color: #aaa;
-            background: #12121f;
-            border: 1px solid #2a2a4a;
-            padding: 5px 12px;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
             border-radius: 20px;
         }
-        .db-pill .dot { width: 8px; height: 8px; }
+        .db-pill { padding: 5px 12px; font-size: .78rem; }
 
-        /* User badge */
+        .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--err);
+        }
+        .dot.online  { background: var(--done); animation: blink 2.5s infinite; }
+        .dot.warning { background: var(--warn); animation: blink 1s infinite; }
+        .db-pill .dot { width: 8px; height: 8px; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
         .user-badge {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 0.78rem;
-            color: #aaa;
-            background: #12121f;
-            border: 1px solid #2a2a4a;
+            color: var(--text-dim);
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
             padding: 5px 12px 5px 8px;
             border-radius: 20px;
             cursor: default;
@@ -86,56 +143,230 @@
         .user-avatar {
             width: 24px; height: 24px;
             border-radius: 50%;
-            background: #3a3a6a;
+            background: var(--border-hi);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: .75rem;
-            color: #c8a4f8;
+            color: var(--accent);
             font-weight: 700;
         }
         .user-info { line-height: 1.3; }
-        .user-name { color: #dde1e7; font-weight: 600; font-size: .8rem; }
-        .user-role { color: #555; font-size: .68rem; }
+        .user-name { color: var(--text); font-weight: 600; font-size: .8rem; }
+        .user-role { color: var(--text-faint2); font-size: .68rem; }
 
-        /* Hiba sáv */
+        /* Beállítások gomb */
+        .settings-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .8rem;
+            color: var(--text-dim);
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: border-color .15s, color .15s;
+        }
+        .settings-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+        .settings-btn.active { border-color: var(--accent-dim); color: var(--accent); }
+
+        /* ── BEÁLLÍTÁSOK PANEL ───────────────────────────────── */
+        .settings-panel {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 24px;
+            margin-bottom: 20px;
+            transition: background .3s;
+        }
+        .settings-panel.open { display: block; }
+
+        .settings-panel-title {
+            font-size: .7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-faint);
+            margin-bottom: 14px;
+            border-left: 3px solid var(--border-hi);
+            padding-left: 10px;
+        }
+
+        .theme-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .theme-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-dim);
+            font-size: .82rem;
+            cursor: pointer;
+            transition: border-color .15s, color .15s, background .15s;
+        }
+        .theme-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+        .theme-btn.selected { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-deep)); }
+
+        .theme-swatch {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,.15);
+            flex-shrink: 0;
+        }
+
+        /* Paletta gomb – kidolgozandó */
+        .theme-btn.paletta {
+            border-style: dashed;
+            border-color: var(--border-hi);
+            opacity: .7;
+            cursor: not-allowed;
+            position: relative;
+        }
+        .theme-btn.paletta:hover { border-color: var(--border-hi); color: var(--text-dim); }
+        .paletta-tag {
+            font-size: .62rem;
+            background: var(--warn);
+            color: #12121f;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-left: 2px;
+        }
+
+        /* ── PALETTA SZERKESZTŐ ──────────────────────────────── */
+        .palette-popup {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-dim);
+            border-radius: 12px;
+            padding: 28px 30px;
+            width: 580px;
+            max-width: 96vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 40px rgba(0,0,0,.7);
+        }
+        .palette-popup-title {
+            font-size: .7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-dim);
+            margin-bottom: 4px;
+        }
+        .palette-popup-sub {
+            font-size: .76rem;
+            color: var(--text-faint);
+            margin-bottom: 20px;
+        }
+        .palette-group { margin-bottom: 16px; }
+        .palette-group-label {
+            font-size: .67rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-faint);
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .color-picker-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .color-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 7px 10px;
+            gap: 8px;
+        }
+        .color-row-info { flex: 1; min-width: 0; }
+        .color-row-label { font-size: .78rem; color: var(--text-dim); }
+        .color-row-val   { font-size: .65rem; color: var(--text-faint); font-family: monospace; margin-top: 1px; }
+        input[type="color"] {
+            width: 34px; height: 26px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 2px;
+            background: transparent;
+            flex-shrink: 0;
+        }
+        .palette-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+        }
+        .pal-btn {
+            flex: 1;
+            padding: 9px;
+            border-radius: 7px;
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-dim);
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color .15s, color .15s, opacity .15s;
+        }
+        .pal-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+        .pal-btn.primary { background: var(--accent-dim); color: #fff; border-color: var(--accent-dim); }
+        .pal-btn.primary:hover { opacity: .85; }
+        .pal-btn.danger  { border-color: var(--err-dark); color: var(--err); }
+        .pal-btn.danger:hover  { background: rgba(192,57,43,.1); }
+
+        /* ── HIBA SÁV ────────────────────────────────────────── */
         .error-bar {
             display: none;
-            background: #2a0f0f;
-            border: 1px solid #8b1a1a;
+            background: var(--err-bg);
+            border: 1px solid var(--err-border);
             border-radius: 6px;
             padding: 8px 16px;
             font-size: .75rem;
-            color: #e74c3c;
+            color: var(--err);
             margin-bottom: 16px;
         }
         .error-bar.show { display: flex; align-items: center; gap: 10px; }
 
-        /* ── JELMAGYARÁZAT ───────────────────────────────── */
+        /* ── JELMAGYARÁZAT ───────────────────────────────────── */
         .legend {
             display: flex;
             gap: 18px;
             font-size: 0.73rem;
-            color: #888;
+            color: var(--text-muted);
             margin-bottom: 22px;
             padding: 9px 16px;
-            background: #1c1c30;
+            background: var(--bg-card);
             border-radius: 6px;
-            border: 1px solid #2a2a4a;
+            border: 1px solid var(--border);
             flex-wrap: wrap;
         }
         .li { display: flex; align-items: center; gap: 6px; }
         .ld { width: 9px; height: 9px; border-radius: 50%; }
 
-        /* ── SZEKCIÓ ─────────────────────────────────────── */
+        /* ── SZEKCIÓ ─────────────────────────────────────────── */
         .section { margin-bottom: 26px; }
         .section-title {
             font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: #666;
+            color: var(--text-faint);
             margin-bottom: 11px;
-            border-left: 3px solid #3a3a6a;
+            border-left: 3px solid var(--border-hi);
             padding-left: 10px;
         }
         .grid {
@@ -144,42 +375,36 @@
             gap: 11px;
         }
 
-        /* ── KÁRTYA ──────────────────────────────────────── */
+        /* ── KÁRTYA ──────────────────────────────────────────── */
         .card {
-            background: #1c1c30;
+            background: var(--bg-card);
             border-radius: 8px;
             padding: 14px 15px 13px;
             position: relative;
-            transition: transform .14s, box-shadow .14s;
+            transition: transform .14s, box-shadow .14s, background .3s;
             border: 1px solid transparent;
         }
         .card:hover { transform: translateY(-2px); box-shadow: 0 5px 18px rgba(0,0,0,.5); }
 
-        /* kész */
-        .card.done   { border-color: #00b894; cursor: pointer; }
+        .card.done    { border-color: var(--done); cursor: pointer; }
         .card.done:hover { box-shadow: 0 5px 18px rgba(0,184,148,.18); }
-
-        /* részleges */
-        .card.partial { border-color: #f39c12; }
-
-        /* inaktív */
-        .card.inactive { border-color: #8b1a1a; opacity: .72; }
+        .card.partial { border-color: var(--warn); }
+        .card.inactive { border-color: var(--err-dark); opacity: .72; }
         .card.inactive .card-icon { filter: grayscale(.5); }
 
-        /* piros villogó csík inaktívaknál */
         .card.inactive::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 2px;
-            background: #c0392b;
+            background: var(--err-dark);
             border-radius: 8px 8px 0 0;
             opacity: .7;
         }
 
-        .card-icon { font-size: 1.7rem; margin-bottom: 9px; }
+        .card-icon  { font-size: 1.7rem; margin-bottom: 9px; }
         .card-title { font-size: .88rem; font-weight: 600; margin-bottom: 3px; }
-        .card-sub   { font-size: .72rem; color: #777; }
+        .card-sub   { font-size: .72rem; color: var(--text-muted); }
 
         .badge {
             position: absolute;
@@ -189,14 +414,14 @@
             padding: 2px 7px;
             border-radius: 10px;
         }
-        .b-done    { background: #00b89422; color: #00b894; }
-        .b-partial { background: #f39c1222; color: #f39c12; }
-        .b-todo    { background: #c0392b22; color: #e74c3c; }
+        .b-done    { background: rgba(0,184,148,.13); color: var(--done); }
+        .b-partial { background: rgba(243,156,18,.13); color: var(--warn); }
+        .b-todo    { background: rgba(192,57,43,.13);  color: var(--err); }
 
-        /* ── HALADÁSJELZŐ ─────────────────────────────────── */
+        /* ── HALADÁSJELZŐ ────────────────────────────────────── */
         .progress-box {
-            background: #1c1c30;
-            border: 1px solid #2a2a4a;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 18px 20px;
         }
@@ -204,14 +429,14 @@
             display: flex;
             justify-content: space-between;
             font-size: .8rem;
-            color: #aaa;
+            color: var(--text-dim);
             margin-bottom: 12px;
         }
-        .prog-row strong { color: #dde1e7; }
-        .bar-bg { background: #12121f; border-radius: 4px; height: 7px; overflow: hidden; }
+        .prog-row strong { color: var(--text); }
+        .bar-bg { background: var(--bg-deep); border-radius: 4px; height: 7px; overflow: hidden; }
         .bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #00b894, #7c5cbf);
+            background: var(--prog-grad);
             border-radius: 4px;
             transition: width .6s ease;
         }
@@ -219,23 +444,23 @@
             display: flex;
             justify-content: space-between;
             font-size: .7rem;
-            color: #666;
+            color: var(--text-faint);
             margin-top: 5px;
         }
 
-        /* ── VÉDETT KÁRTYA (lila) ─────────────────────────── */
-        .card.protected { border-color: #7c5cbf; }
+        /* ── VÉDETT KÁRTYA ───────────────────────────────────── */
+        .card.protected { border-color: var(--accent-dim); }
         .card.protected::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 2px;
-            background: #7c5cbf;
+            background: var(--accent-dim);
             border-radius: 8px 8px 0 0;
         }
-        .b-protected { background: #7c5cbf22; color: #c8a4f8; }
+        .b-protected { background: rgba(124,92,191,.13); color: var(--accent); }
 
-        /* ── AI JÓVÁHAGYÓ POPUP ───────────────────────────── */
+        /* ── AI JÓVÁHAGYÓ POPUP ──────────────────────────────── */
         .overlay {
             display: none;
             position: fixed;
@@ -247,8 +472,8 @@
         }
         .overlay.show { display: flex; }
         .popup {
-            background: #1c1c30;
-            border: 1px solid #7c5cbf;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-dim);
             border-radius: 12px;
             padding: 28px 30px;
             width: 420px;
@@ -259,14 +484,14 @@
             font-size: .7rem;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: #7c5cbf;
+            color: var(--accent-dim);
             margin-bottom: 16px;
         }
         .popup-task {
             font-size: .88rem;
-            color: #dde1e7;
-            background: #12121f;
-            border: 1px solid #2a2a4a;
+            color: var(--text);
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
             border-radius: 6px;
             padding: 10px 14px;
             margin-bottom: 18px;
@@ -276,40 +501,29 @@
             display: flex;
             justify-content: space-between;
             font-size: .8rem;
-            color: #aaa;
+            color: var(--text-dim);
             margin-bottom: 8px;
         }
-        .popup-row strong { color: #dde1e7; }
+        .popup-row strong { color: var(--text); }
         .popup-bar-bg {
-            background: #12121f;
+            background: var(--bg-deep);
             border-radius: 4px;
             height: 6px;
             overflow: hidden;
             margin: 12px 0 4px;
         }
-        .popup-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width .4s ease;
-        }
-        .popup-bar-label {
-            font-size: .68rem;
-            color: #666;
-            margin-bottom: 20px;
-        }
+        .popup-bar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+        .popup-bar-label { font-size: .68rem; color: var(--text-faint); margin-bottom: 20px; }
         .popup-warn {
             font-size: .75rem;
-            color: #f39c12;
-            background: #f39c1211;
-            border: 1px solid #f39c1233;
+            color: var(--warn);
+            background: rgba(243,156,18,.07);
+            border: 1px solid rgba(243,156,18,.2);
             border-radius: 6px;
             padding: 8px 12px;
             margin-bottom: 18px;
         }
-        .popup-buttons {
-            display: flex;
-            gap: 10px;
-        }
+        .popup-buttons { display: flex; gap: 10px; }
         .btn {
             flex: 1;
             padding: 10px;
@@ -321,8 +535,8 @@
             transition: opacity .15s;
         }
         .btn:hover { opacity: .85; }
-        .btn-ok     { background: #00b894; color: #12121f; }
-        .btn-cancel { background: #2a2a4a; color: #aaa; }
+        .btn-ok     { background: var(--done); color: #12121f; }
+        .btn-cancel { background: var(--border); color: var(--text-dim); }
     </style>
 </head>
 <body>
@@ -335,19 +549,16 @@
     </div>
     <div class="header-right">
 
-        <!-- DB kijelző -->
         <div class="db-pill">
             <div class="dot" id="dbDot"></div>
             <span id="dbStatus">DB…</span>
         </div>
 
-        <!-- Server badge -->
         <div class="server-badge">
             <div class="dot" id="dot"></div>
             <span id="srv">Ellenőrzés…</span>
         </div>
 
-        <!-- User badge (auth előtt: Vendég) -->
         <div class="user-badge">
             <div class="user-avatar" id="userAvatar">?</div>
             <div class="user-info">
@@ -355,6 +566,44 @@
                 <div class="user-role" id="userRole">— nincs bejelentkezve —</div>
             </div>
         </div>
+
+        <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()">
+            ⚙️ Beállítások
+        </button>
+
+    </div>
+</div>
+
+<!-- BEÁLLÍTÁSOK PANEL -->
+<div class="settings-panel" id="settingsPanel">
+    <div class="settings-panel-title">Megjelenés – Színséma</div>
+    <div class="theme-row">
+
+        <button class="theme-btn selected" id="btn-ejszaka" onclick="setTheme('ejszaka')">
+            <span class="theme-swatch" style="background:#c8a4f8"></span>
+            Éjszaka
+        </button>
+
+        <button class="theme-btn" id="btn-ocean" onclick="setTheme('ocean')">
+            <span class="theme-swatch" style="background:#4fc3f7"></span>
+            Óceán
+        </button>
+
+        <button class="theme-btn" id="btn-forest" onclick="setTheme('forest')">
+            <span class="theme-swatch" style="background:#66bb6a"></span>
+            Erdő
+        </button>
+
+        <button class="theme-btn" id="btn-steel" onclick="setTheme('steel')">
+            <span class="theme-swatch" style="background:#90caf9"></span>
+            Acél
+        </button>
+
+        <!-- 5. gomb – Paletta szerkesztő -->
+        <button class="theme-btn" id="btn-paletta" onclick="openPaletta()" title="Egyéni színpaletta szerkesztő">
+            <span class="theme-swatch" style="background: conic-gradient(#c8a4f8, #4fc3f7, #66bb6a, #90caf9, #c8a4f8)"></span>
+            Paletta
+        </button>
 
     </div>
 </div>
@@ -712,42 +961,146 @@
     </div>
 </div>
 
+<!-- PALETTA SZERKESZTŐ POPUP -->
+<div class="overlay" id="paletteOverlay">
+    <div class="palette-popup">
+        <div class="palette-popup-title">🎨 Egyéni Paletta – Szerkesztő</div>
+        <div class="palette-popup-sub">A változások azonnal láthatók · Mentés után megmarad</div>
+
+        <div class="palette-group">
+            <div class="palette-group-label">Háttér</div>
+            <div class="color-picker-grid">
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Mély háttér</div>
+                        <div class="color-row-val" id="pc-bg-deep-val">#12121f</div>
+                    </div>
+                    <input type="color" id="pc-bg-deep" value="#12121f" oninput="liveColor('--bg-deep', this.value)">
+                </div>
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Kártya háttér</div>
+                        <div class="color-row-val" id="pc-bg-card-val">#1c1c30</div>
+                    </div>
+                    <input type="color" id="pc-bg-card" value="#1c1c30" oninput="liveColor('--bg-card', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="palette-group">
+            <div class="palette-group-label">Szegélyek</div>
+            <div class="color-picker-grid">
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Szegély</div>
+                        <div class="color-row-val" id="pc-border-val">#2a2a4a</div>
+                    </div>
+                    <input type="color" id="pc-border" value="#2a2a4a" oninput="liveColor('--border', this.value)">
+                </div>
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Szegély kiemelés</div>
+                        <div class="color-row-val" id="pc-border-hi-val">#3a3a6a</div>
+                    </div>
+                    <input type="color" id="pc-border-hi" value="#3a3a6a" oninput="liveColor('--border-hi', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="palette-group">
+            <div class="palette-group-label">Kiemelők</div>
+            <div class="color-picker-grid">
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Kiemelő szín</div>
+                        <div class="color-row-val" id="pc-accent-val">#c8a4f8</div>
+                    </div>
+                    <input type="color" id="pc-accent" value="#c8a4f8" oninput="liveColor('--accent', this.value)">
+                </div>
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Kiemelő (halvány)</div>
+                        <div class="color-row-val" id="pc-accent-dim-val">#7c5cbf</div>
+                    </div>
+                    <input type="color" id="pc-accent-dim" value="#7c5cbf" oninput="liveColor('--accent-dim', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="palette-group">
+            <div class="palette-group-label">Szöveg</div>
+            <div class="color-picker-grid">
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Fő szöveg</div>
+                        <div class="color-row-val" id="pc-text-val">#dde1e7</div>
+                    </div>
+                    <input type="color" id="pc-text" value="#dde1e7" oninput="liveColor('--text', this.value)">
+                </div>
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Szöveg (halvány)</div>
+                        <div class="color-row-val" id="pc-text-dim-val">#aaaaaa</div>
+                    </div>
+                    <input type="color" id="pc-text-dim" value="#aaaaaa" oninput="liveColor('--text-dim', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="palette-group">
+            <div class="palette-group-label">Állapotszínek</div>
+            <div class="color-picker-grid">
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Kész (zöld)</div>
+                        <div class="color-row-val" id="pc-done-val">#00b894</div>
+                    </div>
+                    <input type="color" id="pc-done" value="#00b894" oninput="liveColor('--done', this.value)">
+                </div>
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Figyelmeztetés</div>
+                        <div class="color-row-val" id="pc-warn-val">#f39c12</div>
+                    </div>
+                    <input type="color" id="pc-warn" value="#f39c12" oninput="liveColor('--warn', this.value)">
+                </div>
+                <div class="color-row">
+                    <div class="color-row-info">
+                        <div class="color-row-label">Hiba / Inaktív</div>
+                        <div class="color-row-val" id="pc-err-val">#e74c3c</div>
+                    </div>
+                    <input type="color" id="pc-err" value="#e74c3c" oninput="liveColor('--err', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="palette-actions">
+            <button class="pal-btn primary" onclick="savePalette()">💾 Mentés</button>
+            <button class="pal-btn danger"  onclick="resetPalette()">↩ Visszaállítás</button>
+            <button class="pal-btn"         onclick="closePalette()">Bezárás</button>
+        </div>
+    </div>
+</div>
+
 <!-- AI JÓVÁHAGYÓ POPUP -->
 <div class="overlay" id="aiOverlay">
     <div class="popup">
         <div class="popup-title">⚠️ Külső AI API hívás – Jóváhagyás szükséges</div>
-
         <div class="popup-task" id="popupTask">
             Fuzzy azonosítás: <em>"Belden 1234"</em> vs <em>"BELDEN cat.1234"</em><br>
-            <small style="color:#666">A helyi motor nem tudta meghatározni – külső API segítségét kéri.</small>
+            <small style="color:var(--text-faint)">A helyi motor nem tudta meghatározni – külső API segítségét kéri.</small>
         </div>
-
-        <div class="popup-row">
-            <span>Model</span>
-            <strong id="popupModel">claude-sonnet-4-6</strong>
-        </div>
-        <div class="popup-row">
-            <span>Becsült token</span>
-            <strong id="popupTokens">~1 200 token</strong>
-        </div>
-        <div class="popup-row">
-            <span>Becsült költség</span>
-            <strong id="popupCost">~42 Ft</strong>
-        </div>
-        <div class="popup-row">
-            <span>Felhasznált keret</span>
-            <strong id="popupUsed">23% (4 600 / 20 000 token)</strong>
-        </div>
-
+        <div class="popup-row"><span>Model</span><strong id="popupModel">claude-sonnet-4-6</strong></div>
+        <div class="popup-row"><span>Becsült token</span><strong id="popupTokens">~1 200 token</strong></div>
+        <div class="popup-row"><span>Becsült költség</span><strong id="popupCost">~42 Ft</strong></div>
+        <div class="popup-row"><span>Felhasznált keret</span><strong id="popupUsed">23% (4 600 / 20 000 token)</strong></div>
         <div class="popup-bar-bg">
-            <div class="popup-bar-fill" id="popupBar" style="width:23%; background: #00b894;"></div>
+            <div class="popup-bar-fill" id="popupBar" style="width:23%; background:#00b894;"></div>
         </div>
         <div class="popup-bar-label" id="popupBarLabel">Marad: ~15 400 token a havi keretből</div>
-
         <div class="popup-warn" id="popupWarn" style="display:none">
             ⚠️ A keret 80% fölött van – ellenőrizd a havi limitet!
         </div>
-
         <div class="popup-buttons">
             <button class="btn btn-ok"     onclick="aiApprove()">Jóváhagyom</button>
             <button class="btn btn-cancel" onclick="aiReject()">Elutasítom</button>
@@ -756,25 +1109,126 @@
 </div>
 
 <script>
-    // ── AI POPUP ─────────────────────────────────────────────
+    // ── TÉMAKEZELŐ ────────────────────────────────────────────
+    const THEMES = ['ejszaka', 'ocean', 'forest', 'steel', 'paletta'];
+
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('crt-theme', theme);
+        THEMES.forEach(t => {
+            const btn = document.getElementById('btn-' + t);
+            if (btn) btn.classList.toggle('selected', t === theme);
+        });
+    }
+
+    function toggleSettings() {
+        const panel = document.getElementById('settingsPanel');
+        const btn   = document.getElementById('settingsBtn');
+        const open  = panel.classList.toggle('open');
+        btn.classList.toggle('active', open);
+    }
+
+    // Mentett téma betöltése
+    const savedTheme = localStorage.getItem('crt-theme') || 'ejszaka';
+    setTheme(savedTheme);
+    if (savedTheme === 'paletta') loadSavedPalette();
+
+    // ── PALETTA SZERKESZTŐ ────────────────────────────────────
+    const PALETTE_VARS = [
+        { id: 'pc-bg-deep',    var: '--bg-deep',    def: '#12121f' },
+        { id: 'pc-bg-card',    var: '--bg-card',     def: '#1c1c30' },
+        { id: 'pc-border',     var: '--border',      def: '#2a2a4a' },
+        { id: 'pc-border-hi',  var: '--border-hi',   def: '#3a3a6a' },
+        { id: 'pc-accent',     var: '--accent',      def: '#c8a4f8' },
+        { id: 'pc-accent-dim', var: '--accent-dim',  def: '#7c5cbf' },
+        { id: 'pc-text',       var: '--text',        def: '#dde1e7' },
+        { id: 'pc-text-dim',   var: '--text-dim',    def: '#aaaaaa' },
+        { id: 'pc-done',       var: '--done',        def: '#00b894' },
+        { id: 'pc-warn',       var: '--warn',        def: '#f39c12' },
+        { id: 'pc-err',        var: '--err',         def: '#e74c3c' },
+    ];
+
+    function openPaletta() {
+        setTheme('paletta');
+        syncPickersToCurrent();
+        document.getElementById('paletteOverlay').classList.add('show');
+    }
+    function closePalette() {
+        document.getElementById('paletteOverlay').classList.remove('show');
+    }
+
+    function syncPickersToCurrent() {
+        const style = getComputedStyle(document.documentElement);
+        PALETTE_VARS.forEach(pv => {
+            const el = document.getElementById(pv.id);
+            if (!el) return;
+            const raw = document.documentElement.style.getPropertyValue(pv.var).trim()
+                     || style.getPropertyValue(pv.var).trim();
+            const hex = rgbToHex(raw) || raw;
+            if (/^#[0-9a-f]{6}$/i.test(hex)) el.value = hex;
+            const lbl = document.getElementById(pv.id + '-val');
+            if (lbl) lbl.textContent = hex || raw;
+        });
+    }
+
+    function liveColor(varName, value) {
+        document.documentElement.style.setProperty(varName, value);
+        const pv = PALETTE_VARS.find(p => p.var === varName);
+        if (pv) {
+            const lbl = document.getElementById(pv.id + '-val');
+            if (lbl) lbl.textContent = value;
+        }
+    }
+
+    function savePalette() {
+        const saved = {};
+        PALETTE_VARS.forEach(pv => {
+            const el = document.getElementById(pv.id);
+            if (el) saved[pv.var] = el.value;
+        });
+        localStorage.setItem('crt-palette', JSON.stringify(saved));
+        localStorage.setItem('crt-theme', 'paletta');
+        const btn = document.querySelector('.pal-btn.primary');
+        if (btn) { const t = btn.textContent; btn.textContent = '✅ Mentve!'; setTimeout(() => btn.textContent = t, 1400); }
+    }
+
+    function resetPalette() {
+        PALETTE_VARS.forEach(pv => document.documentElement.style.removeProperty(pv.var));
+        localStorage.removeItem('crt-palette');
+        closePalette();
+        setTheme('ejszaka');
+    }
+
+    function loadSavedPalette() {
+        try {
+            const colors = JSON.parse(localStorage.getItem('crt-palette') || '{}');
+            Object.entries(colors).forEach(([v, val]) => document.documentElement.style.setProperty(v, val));
+        } catch {}
+    }
+
+    function rgbToHex(rgb) {
+        const m = (rgb || '').match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        if (!m) return null;
+        return '#' + [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, '0')).join('');
+    }
+
+    // ── AI POPUP ──────────────────────────────────────────────
     let _aiResolve = null;
 
     function showAiApproval({ task, model, tokens, cost_huf, used_pct, used_tokens, limit_tokens }) {
-        document.getElementById('popupTask').innerHTML   = task;
-        document.getElementById('popupModel').textContent  = model;
+        document.getElementById('popupTask').innerHTML    = task;
+        document.getElementById('popupModel').textContent = model;
         document.getElementById('popupTokens').textContent = `~${tokens.toLocaleString()} token`;
         document.getElementById('popupCost').textContent   = `~${cost_huf} Ft`;
         document.getElementById('popupUsed').textContent   = `${used_pct}%  (${used_tokens.toLocaleString()} / ${limit_tokens.toLocaleString()} token)`;
 
         const bar = document.getElementById('popupBar');
-        bar.style.width = used_pct + '%';
+        bar.style.width      = used_pct + '%';
         bar.style.background = used_pct > 80 ? '#e74c3c' : used_pct > 60 ? '#f39c12' : '#00b894';
 
         document.getElementById('popupBarLabel').textContent =
             `Marad: ~${(limit_tokens - used_tokens).toLocaleString()} token a havi keretből`;
-
         document.getElementById('popupWarn').style.display = used_pct > 80 ? 'block' : 'none';
-
         document.getElementById('aiOverlay').classList.add('show');
         return new Promise(resolve => { _aiResolve = resolve; });
     }
@@ -783,23 +1237,18 @@
         document.getElementById('aiOverlay').classList.remove('show');
         if (_aiResolve) _aiResolve(true);
     }
-
     function aiReject() {
         document.getElementById('aiOverlay').classList.remove('show');
         if (_aiResolve) _aiResolve(false);
     }
 
-    // Példa hívás (fejlesztői teszt – F2):
+    // F2 – teszt popup
     document.addEventListener('keydown', e => {
         if (e.key === 'F2') {
             showAiApproval({
-                task: 'Fuzzy azonosítás: <em>"Belden 1234"</em> vs <em>"BELDEN cat.1234"</em><br><small style="color:#666">A helyi motor nem tudta meghatározni.</small>',
-                model: 'claude-sonnet-4-6',
-                tokens: 1200,
-                cost_huf: 42,
-                used_pct: 23,
-                used_tokens: 4600,
-                limit_tokens: 20000
+                task: 'Fuzzy azonosítás: <em>"Belden 1234"</em> vs <em>"BELDEN cat.1234"</em><br><small style="color:var(--text-faint)">A helyi motor nem tudta meghatározni.</small>',
+                model: 'claude-sonnet-4-6', tokens: 1200, cost_huf: 42,
+                used_pct: 23, used_tokens: 4600, limit_tokens: 20000
             }).then(ok => console.log('AI jóváhagyás:', ok ? '✅ igen' : '❌ nem'));
         }
     });
@@ -807,28 +1256,19 @@
     // ── SERVER + DB STATUS ────────────────────────────────────
     function checkHealth() {
         fetch('http://localhost:8000/health')
-            .then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                return r.json();
-            })
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
             .then(d => {
-                // Server
                 document.getElementById('dot').classList.remove('warning');
                 document.getElementById('dot').classList.add('online');
                 document.getElementById('srv').textContent = `Online · ${d.ntp || ''}`;
 
-                // DB
-                const dbOk = d.db === 'ok';
+                const dbOk  = d.db === 'ok';
                 const dbDot = document.getElementById('dbDot');
-                dbDot.classList.remove('online','warning');
+                dbDot.classList.remove('online', 'warning');
                 dbDot.classList.add(dbOk ? 'online' : 'warning');
-                document.getElementById('dbStatus').textContent =
-                    dbOk ? 'PostgreSQL OK' : 'DB hiba!';
-
-                // Hiba sáv elrejtése
+                document.getElementById('dbStatus').textContent = dbOk ? 'PostgreSQL OK' : 'DB hiba!';
                 document.getElementById('errorBar').classList.remove('show');
-
-                if (!dbOk) showError('PostgreSQL nem válaszol – ellenőrizd a db\pg.log fájlt!');
+                if (!dbOk) showError('PostgreSQL nem válaszol – ellenőrizd a db\\pg.log fájlt!');
             })
             .catch(e => {
                 document.getElementById('dot').classList.remove('online');
@@ -846,7 +1286,7 @@
     }
 
     checkHealth();
-    setInterval(checkHealth, 15000); // 15 mp-enként frissít
+    setInterval(checkHealth, 15000);
 </script>
 
 </body>

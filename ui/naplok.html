@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Naplók</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:.7rem;}
+.topbar h1{font-size:.95rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden;}
+
+/* ── SIDEBAR / SZŰRŐ ── */
+.sidebar{width:230px;border-right:1px solid var(--border);background:var(--bg-card);flex-shrink:0;padding:.8rem;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem;}
+.filter-label{font-size:.68rem;font-weight:700;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-top:.4rem;}
+.filter-label:first-child{margin-top:0;}
+.filter-input{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.38rem .6rem;color:var(--text);font-size:.8rem;outline:none;font-family:inherit;}
+.filter-input:focus{border-color:var(--accent);}
+.filter-select{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.38rem .6rem;color:var(--text);font-size:.8rem;outline:none;font-family:inherit;cursor:pointer;}
+.filter-row{display:flex;gap:.4rem;}
+.filter-row .filter-input{flex:1;}
+
+/* ── FŐ TARTALOM ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── STATISZIKA SÁV ── */
+.stat-bar{display:flex;gap:.5rem;padding:.55rem 1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0;}
+.stat-chip{font-size:.73rem;padding:.18rem .5rem;border-radius:99px;font-weight:600;}
+.sc-total {background:rgba(124,106,247,.12);color:var(--accent);border:1px solid var(--accent-dim);}
+.sc-login {background:rgba(62,207,142,.12);color:var(--done);border:1px solid rgba(62,207,142,.3);}
+.sc-warn  {background:rgba(245,166,35,.12);color:var(--warn);border:1px solid rgba(245,166,35,.3);}
+.sc-err   {background:rgba(231,76,60,.12);color:var(--err);border:1px solid rgba(231,76,60,.3);}
+.stat-time{font-size:.72rem;color:var(--text-muted);margin-left:auto;align-self:center;}
+
+/* ── TÁBLA ── */
+.table-wrap{flex:1;overflow:auto;}
+table.log-table{width:100%;border-collapse:collapse;font-size:.78rem;}
+table.log-table th{background:var(--bg-card);color:var(--text-muted);font-weight:600;padding:.45rem .7rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:5;}
+table.log-table td{padding:.42rem .7rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.log-table tr:hover td{background:rgba(255,255,255,.025);}
+table.log-table tr.err-row td{background:rgba(231,76,60,.05);}
+table.log-table tr.warn-row td{background:rgba(245,166,35,.04);}
+
+/* ── AKCIÓ BADGE ── */
+.action-badge{display:inline-block;font-size:.68rem;padding:.1rem .38rem;border-radius:99px;font-weight:600;white-space:nowrap;}
+.ab-login   {background:rgba(62,207,142,.15);color:var(--done);}
+.ab-logout  {background:rgba(90,90,122,.18);color:var(--text-muted);}
+.ab-create  {background:rgba(124,106,247,.15);color:var(--accent);}
+.ab-update  {background:rgba(56,178,224,.12);color:#38b2e0;}
+.ab-delete  {background:rgba(231,76,60,.15);color:var(--err);}
+.ab-ai      {background:rgba(245,166,35,.15);color:var(--warn);}
+.ab-export  {background:rgba(62,207,142,.1);color:var(--done);}
+.ab-other   {background:rgba(90,90,122,.12);color:var(--text-muted);}
+.ab-lock    {background:rgba(231,76,60,.1);color:var(--err);}
+
+/* ── ENTITÁS CHIP ── */
+.entity-chip{font-size:.68rem;color:var(--text-muted);background:rgba(255,255,255,.04);border-radius:4px;padding:.05rem .28rem;}
+
+/* ── LAPOZÓ ── */
+.pager{display:flex;align-items:center;gap:.4rem;padding:.55rem 1rem;border-top:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.pager-info{font-size:.76rem;color:var(--text-muted);flex:1;}
+.pager button{padding:.3rem .6rem;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.76rem;font-family:inherit;}
+.pager button:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.pager button:disabled{opacity:.35;cursor:not-allowed;}
+.pager-pages{display:flex;gap:.25rem;}
+.pager-pages button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* ── RÉSZLET PANEL ── */
+.detail-panel{width:320px;border-left:1px solid var(--border);background:var(--bg-card);flex-shrink:0;overflow-y:auto;padding:1rem;display:none;}
+.detail-panel.open{display:block;}
+.detail-title{font-size:.85rem;font-weight:700;margin-bottom:.8rem;display:flex;justify-content:space-between;align-items:center;}
+.detail-row{display:flex;flex-direction:column;margin-bottom:.6rem;}
+.detail-row label{font-size:.68rem;color:var(--text-muted);margin-bottom:.1rem;}
+.detail-row span{font-size:.8rem;color:var(--text);word-break:break-all;}
+.detail-sep{height:1px;background:var(--border);margin:.5rem 0;}
+
+/* ── LOADING / EMPTY ── */
+.center-msg{display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:.5rem;color:var(--text-muted);font-size:.85rem;}
+.spinner-lg{width:24px;height:24px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── GOMBOK ── */
+.btn{padding:.4rem .8rem;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.78rem;font-family:inherit;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.btn-sm{padding:.26rem .5rem;font-size:.72rem;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;left:1.2rem;width:9px;height:9px;border-radius:50%;background:var(--done);box-shadow:0 0 5px var(--done);animation:pulse 2s ease-in-out infinite;}
+.status-dot.red{background:var(--err);box-shadow:0 0 5px var(--err);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── TÉMA ── */
+.theme-bar{display:flex;gap:5px;}
+.theme-btn{width:14px;height:14px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="fomenu.html" style="color:var(--text-muted);text-decoration:none;font-size:.82rem;">← Főmenü</a>
+    <h1>📊 Naplók</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <button class="btn btn-sm" onclick="exportCsv()">⬇ CSV</button>
+    <button class="btn btn-sm btn-danger" onclick="doLogout()" style="border-color:var(--err);color:var(--err);">Kilépés</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SZŰRŐ PANEL -->
+  <div class="sidebar">
+    <div class="filter-label">Keresés</div>
+    <input class="filter-input" id="fSearch" type="text" placeholder="user, entitás, IP…" oninput="debouncedLoad()">
+
+    <div class="filter-label">Akció típusa</div>
+    <select class="filter-select" id="fAction" onchange="loadLogs()">
+      <option value="">Összes</option>
+      <option value="login">login</option>
+      <option value="logout">logout</option>
+      <option value="create">create</option>
+      <option value="update">update</option>
+      <option value="delete">delete</option>
+      <option value="ai_identify">ai_identify</option>
+      <option value="export">export</option>
+      <option value="locked">locked</option>
+      <option value="unlock">unlock</option>
+    </select>
+
+    <div class="filter-label">Entitás</div>
+    <select class="filter-select" id="fEntity" onchange="loadLogs()">
+      <option value="">Összes</option>
+      <option value="session">session</option>
+      <option value="user">user</option>
+      <option value="product">product</option>
+      <option value="activity">activity</option>
+      <option value="quote">quote</option>
+      <option value="quote_line">quote_line</option>
+      <option value="web_source">web_source</option>
+      <option value="web_script">web_script</option>
+    </select>
+
+    <div class="filter-label">Időszak</div>
+    <input class="filter-input" id="fFrom" type="date" onchange="loadLogs()">
+    <input class="filter-input" id="fTo"   type="date" onchange="loadLogs()">
+
+    <div class="filter-label">Felhasználó ID</div>
+    <input class="filter-input" id="fUser" type="number" min="1" placeholder="pl. 3" oninput="debouncedLoad()">
+
+    <div style="margin-top:.4rem;">
+      <button class="btn btn-sm" style="width:100%;" onclick="resetFilters()">↺ Szűrők törlése</button>
+    </div>
+
+    <div class="filter-label" style="margin-top:.8rem;">Sorok / oldal</div>
+    <select class="filter-select" id="fLimit" onchange="loadLogs()">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+    </select>
+  </div>
+
+  <!-- FŐ TARTALOM -->
+  <div class="main">
+    <!-- Stat sáv -->
+    <div class="stat-bar" id="statBar">
+      <span class="stat-chip sc-total" id="stTotal">–</span>
+      <span class="stat-chip sc-login" id="stLogin">–</span>
+      <span class="stat-chip sc-warn"  id="stWarn">–</span>
+      <span class="stat-chip sc-err"   id="stErr">–</span>
+      <span class="stat-time" id="stTime"></span>
+    </div>
+
+    <!-- Tábla -->
+    <div class="table-wrap" id="tableWrap">
+      <div class="center-msg"><div class="spinner-lg"></div>Betöltés…</div>
+    </div>
+
+    <!-- Lapozó -->
+    <div class="pager" id="pager" style="display:none;">
+      <span class="pager-info" id="pagerInfo"></span>
+      <button onclick="goPage(_page-1)" id="btnPrev">‹ Előző</button>
+      <div class="pager-pages" id="pagerPages"></div>
+      <button onclick="goPage(_page+1)" id="btnNext">Következő ›</button>
+    </div>
+  </div>
+
+  <!-- RÉSZLET PANEL -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-title">
+      <span>Részletek</span>
+      <button class="btn btn-sm" onclick="closeDetail()">×</button>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+
+</div>
+
+<div class="status-dot" id="statusDot"></div>
+
+<script>
+const API = 'http://localhost:8000';
+function getToken(){ return localStorage.getItem('crt-token')||''; }
+function authH()   { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+if(!getToken()) window.location.href='login.html';
+
+// ── TÉMÁK ─────────────────────────────────────────────────────
+const THEMES=['ejszaka','ocean','forest','steel'];
+document.getElementById('themeBar').innerHTML=THEMES.map(t=>
+  `<button class="theme-btn" data-t="${t}" onclick="setTheme('${t}')"></button>`).join('');
+function setTheme(t){
+  document.documentElement.dataset.theme=t;
+  localStorage.setItem('crt-theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+}
+(()=>{ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+
+function doLogout(){
+  fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}).catch(()=>{});
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href='login.html';
+}
+
+// ── ÁLLAPOT ───────────────────────────────────────────────────
+let _page=1, _total=0, _rows=[];
+let _debTimer=null;
+
+function debouncedLoad(){ clearTimeout(_debTimer); _debTimer=setTimeout(()=>{ _page=1; loadLogs(); },380); }
+
+// ── SZŰRŐK ────────────────────────────────────────────────────
+function resetFilters(){
+  ['fSearch','fUser'].forEach(id=>document.getElementById(id).value='');
+  ['fAction','fEntity','fLimit'].forEach(id=>document.getElementById(id).value= id==='fLimit'?'50':'');
+  document.getElementById('fFrom').value='';
+  document.getElementById('fTo').value='';
+  _page=1; loadLogs();
+}
+
+function getFilters(){
+  return {
+    search: document.getElementById('fSearch').value.trim(),
+    action: document.getElementById('fAction').value,
+    entity: document.getElementById('fEntity').value,
+    from:   document.getElementById('fFrom').value,
+    to:     document.getElementById('fTo').value,
+    user_id:document.getElementById('fUser').value,
+    limit:  parseInt(document.getElementById('fLimit').value)||50,
+    offset: (_page-1)*(parseInt(document.getElementById('fLimit').value)||50),
+  };
+}
+
+// ── BETÖLTÉS ──────────────────────────────────────────────────
+async function loadLogs(){
+  const wrap=document.getElementById('tableWrap');
+  wrap.innerHTML='<div class="center-msg"><div class="spinner-lg"></div>Betöltés…</div>';
+  document.getElementById('pager').style.display='none';
+
+  const f=getFilters();
+  const params=new URLSearchParams();
+  if(f.search)  params.set('q',f.search);
+  if(f.action)  params.set('action',f.action);
+  // entity_type szerver oldalon nem támogatott szűrő – entity_id-re keresünk a q mezőn át
+  if(f.entity && !f.search) params.set('q', f.entity);
+  if(f.from)    params.set('from',f.from);
+  if(f.to)      params.set('to',f.to);
+  if(f.user_id) params.set('user_id',f.user_id);
+  params.set('limit',f.limit);
+  params.set('offset',f.offset);
+
+  try{
+    const res=await fetch(`${API}/audit/logs?${params}`,{headers:authH()});
+    if(res.status===403){ wrap.innerHTML='<div class="center-msg"><span style="color:var(--err);">Admin jogosultság szükséges</span></div>'; return; }
+    if(!res.ok) throw new Error(await res.text());
+    const d=await res.json();
+    _rows=d.logs||[];
+    _total=d.total||0;
+    renderTable();
+    renderStats(d);
+    renderPager(f.limit);
+  } catch(e){
+    wrap.innerHTML=`<div class="center-msg"><span style="color:var(--err);">Betöltési hiba: ${esc(e.message)}</span></div>`;
+  }
+}
+
+// ── TÁBLA RENDER ──────────────────────────────────────────────
+const ACTION_CL={
+  login:'ab-login',logout:'ab-logout',
+  create:'ab-create',update:'ab-update',delete:'ab-delete',
+  ai_identify:'ab-ai',export:'ab-export',
+  locked:'ab-lock',unlock:'ab-lock',
+};
+function actionCl(a){ return ACTION_CL[a]||'ab-other'; }
+
+function rowCl(a){
+  if(['delete','locked'].includes(a)) return 'err-row';
+  if(['unlock','update'].includes(a)) return 'warn-row';
+  return '';
+}
+
+function renderTable(){
+  const wrap=document.getElementById('tableWrap');
+  if(!_rows.length){
+    wrap.innerHTML='<div class="center-msg">Nincs találat a megadott szűrőkkel.</div>';
+    return;
+  }
+  wrap.innerHTML=`<table class="log-table">
+    <thead><tr>
+      <th style="width:140px;">Időbélyeg</th>
+      <th style="width:90px;">Felhasználó</th>
+      <th style="width:100px;">Akció</th>
+      <th style="width:90px;">Entitás</th>
+      <th>Leírás / Entitás ID</th>
+      <th style="width:110px;">IP cím</th>
+      <th style="width:36px;"></th>
+    </tr></thead>
+    <tbody>${_rows.map((r,i)=>`
+      <tr class="${rowCl(r.action)}" style="cursor:pointer;" onclick="showDetail(${i})">
+        <td style="font-variant-numeric:tabular-nums;color:var(--text-muted);font-size:.74rem;">${fmtTs(r.created_at)}</td>
+        <td>${r.username?`<strong>${esc(r.username)}</strong>`:`<span style="color:var(--text-muted);">id:${r.user_id||'–'}</span>`}</td>
+        <td><span class="action-badge ${actionCl(r.action)}">${esc(r.action||'–')}</span></td>
+        <td>${r.entity_type?`<span class="entity-chip">${esc(r.entity_type)}</span>`:'–'}</td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${esc(r.description||r.entity_id||'–')}
+        </td>
+        <td style="font-size:.72rem;color:var(--text-muted);">${esc(r.ip_address||'–')}</td>
+        <td><button class="btn btn-sm" onclick="showDetail(${i});event.stopPropagation();" title="Részletek">↗</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── STATISZTIKA ───────────────────────────────────────────────
+function renderStats(d){
+  document.getElementById('stTotal').textContent=`Összes: ${d.total||0}`;
+  document.getElementById('stLogin').textContent=`Login: ${d.count_login||0}`;
+  document.getElementById('stWarn').textContent=`Módosítás: ${d.count_update||0}`;
+  document.getElementById('stErr').textContent=`Törlés: ${d.count_delete||0}`;
+  document.getElementById('stTime').textContent=`Frissítve: ${fmtTs(new Date().toISOString())}`;
+}
+
+// ── LAPOZÓ ────────────────────────────────────────────────────
+function renderPager(limit){
+  const pg=document.getElementById('pager');
+  if(_total<=0){ pg.style.display='none'; return; }
+  pg.style.display='flex';
+  const pages=Math.ceil(_total/limit);
+  document.getElementById('pagerInfo').textContent=
+    `${(_page-1)*limit+1}–${Math.min(_page*limit,_total)} / ${_total} rekord`;
+  document.getElementById('btnPrev').disabled=_page<=1;
+  document.getElementById('btnNext').disabled=_page>=pages;
+
+  const pp=document.getElementById('pagerPages');
+  const start=Math.max(1,_page-2), end=Math.min(pages,start+4);
+  pp.innerHTML=Array.from({length:end-start+1},(_,i)=>start+i).map(p=>
+    `<button class="${p===_page?'active':''}" onclick="goPage(${p})">${p}</button>`
+  ).join('');
+}
+
+function goPage(p){
+  const limit=parseInt(document.getElementById('fLimit').value)||50;
+  const pages=Math.ceil(_total/limit);
+  if(p<1||p>pages) return;
+  _page=p; loadLogs();
+}
+
+// ── RÉSZLET PANEL ─────────────────────────────────────────────
+function showDetail(i){
+  const r=_rows[i];
+  if(!r) return;
+  const panel=document.getElementById('detailPanel');
+  panel.classList.add('open');
+  document.getElementById('detailContent').innerHTML=`
+    <div class="detail-row"><label>Időbélyeg</label><span>${fmtTs(r.created_at)}</span></div>
+    <div class="detail-row"><label>Felhasználó</label><span>${esc(r.username||'–')} ${r.user_id?`(id: ${r.user_id})`:'–'}</span></div>
+    <div class="detail-row"><label>Akció</label><span><span class="action-badge ${actionCl(r.action)}">${esc(r.action||'–')}</span></span></div>
+    <div class="detail-row"><label>Entitás típusa</label><span>${esc(r.entity_type||'–')}</span></div>
+    <div class="detail-row"><label>Entitás ID</label><span>${esc(r.entity_id||'–')}</span></div>
+    <div class="detail-sep"></div>
+    <div class="detail-row"><label>Leírás</label><span>${esc(r.description||'–')}</span></div>
+    <div class="detail-row"><label>IP cím</label><span>${esc(r.ip_address||'–')}</span></div>
+    ${r.extra?`<div class="detail-sep"></div><div class="detail-row"><label>Extra adat</label><span style="font-size:.72rem;word-break:break-all;">${esc(JSON.stringify(r.extra,null,2))}</span></div>`:''}
+    <div class="detail-sep"></div>
+    <div class="detail-row"><label>Napló ID</label><span style="color:var(--text-muted);">${r.log_id||'–'}</span></div>
+  `;
+}
+
+function closeDetail(){
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────────
+function exportCsv(){
+  if(!_rows.length){ alert('Nincs adat az exporthoz.'); return; }
+  const header=['ID','Időbélyeg','Felhasználó ID','Felhasználó','Akció','Entitás típus','Entitás ID','Leírás','IP cím'];
+  const rows=_rows.map(r=>[
+    r.log_id||'',fmtTs(r.created_at),r.user_id||'',r.username||'',
+    r.action||'','',r.entity_id||'',
+    (r.description||'').replace(/"/g,'""'),r.ip_address||''
+  ].map(v=>`"${v}"`).join(','));
+  const csv='﻿'+[header.join(','),...rows].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`crt_naplo_${fmtDate(new Date().toISOString())}.csv`;
+  a.click();
+}
+
+// ── SEGÉDFÜGGVÉNYEK ───────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtTs(iso){
+  if(!iso) return '–';
+  try{
+    const d=new Date(iso);
+    return `${d.getFullYear()}.${p2(d.getMonth()+1)}.${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+  } catch{ return iso; }
+}
+function fmtDate(iso){ try{ const d=new Date(iso); return `${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}`; } catch{ return ''; } }
+function p2(n){ return String(n).padStart(2,'0'); }
+
+// ── STÁTUSZ DOT ───────────────────────────────────────────────
+async function checkStatus(){
+  const dot=document.getElementById('statusDot');
+  try{
+    const res=await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d=await res.json();
+    dot.className=d.status==='green'?'status-dot':'status-dot red';
+  } catch{ dot.className='status-dot red'; }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadLogs();
+checkStatus();
+setInterval(checkStatus,30000);
+setInterval(()=>{ if(!document.getElementById('fSearch').matches(':focus')) loadLogs(); },60000);
+</script>
+</body>
+</html>

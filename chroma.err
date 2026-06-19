@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "C:\Users\puszt\AppData\Local\Programs\Python\Python311\Lib\site-packages\chromadb\app.py", line 3, in <module>
+    from chromadb.server.fastapi import FastAPI
+  File "C:\Users\puszt\AppData\Local\Programs\Python\Python311\Lib\site-packages\chromadb\server\fastapi\__init__.py", line 79, in <module>
+    from chromadb.telemetry.opentelemetry.fastapi import instrument_fastapi
+  File "C:\Users\puszt\AppData\Local\Programs\Python\Python311\Lib\site-packages\chromadb\telemetry\opentelemetry\fastapi.py", line 3, in <module>
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+ModuleNotFoundError: No module named 'opentelemetry.instrumentation'

@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Beállítások</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:.7rem;}
+.topbar h1{font-size:.95rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:210px;border-right:1px solid var(--border);background:var(--bg-card);flex-shrink:0;padding:.6rem 0;overflow-y:auto;}
+.content{flex:1;overflow-y:auto;padding:1.8rem 2rem;max-width:760px;}
+
+/* ── SIDEBAR NAV ── */
+.nav-item{display:flex;align-items:center;gap:.55rem;padding:.55rem 1rem;font-size:.83rem;cursor:pointer;color:var(--text-dim);border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover{background:rgba(255,255,255,.04);color:var(--text);}
+.nav-item.active{border-left-color:var(--accent);color:var(--text);background:rgba(255,255,255,.05);}
+.nav-sep{height:1px;background:var(--border);margin:.4rem .8rem;}
+.nav-label{font-size:.66rem;font-weight:700;color:var(--text-muted);letter-spacing:.09em;text-transform:uppercase;padding:.6rem 1rem .2rem;}
+
+/* ── SZEKCIÓ ── */
+.section{display:none;}
+.section.active{display:block;}
+.section-title{font-size:1.05rem;font-weight:700;margin-bottom:.3rem;}
+.section-desc{font-size:.8rem;color:var(--text-muted);margin-bottom:1.4rem;line-height:1.5;}
+
+/* ── KÁRTYA ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.2rem 1.3rem;margin-bottom:1rem;}
+.card-title{font-size:.82rem;font-weight:700;margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem;}
+.card-title span{font-size:.72rem;color:var(--text-muted);font-weight:400;}
+
+/* ── MEZŐK ── */
+.field{margin-bottom:.75rem;}
+.field label{display:block;font-size:.73rem;color:var(--text-dim);margin-bottom:.22rem;}
+.field input,.field select{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.48rem .7rem;color:var(--text);font-size:.84rem;outline:none;font-family:inherit;transition:border-color .2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.field input[type=password]{letter-spacing:.12em;}
+.field input[type=number]{max-width:160px;}
+.field-row{display:flex;gap:.7rem;}
+.field-row .field{flex:1;}
+.field-hint{font-size:.7rem;color:var(--text-muted);margin-top:.2rem;}
+
+/* ── KAPCSOLÓ ── */
+.toggle-row{display:flex;align-items:center;gap:1rem;padding:.4rem 0;}
+.toggle-row label{flex:1;font-size:.83rem;color:var(--text-dim);}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:background .2s;}
+.toggle-slider::after{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;}
+.toggle input:checked+.toggle-slider{background:var(--accent);}
+.toggle input:checked+.toggle-slider::after{transform:translateX(16px);}
+
+/* ── TESZT BADGE ── */
+.test-badge{display:inline-block;font-size:.7rem;padding:.15rem .45rem;border-radius:99px;margin-left:.4rem;font-weight:600;}
+.badge-ok  {background:rgba(62,207,142,.15);color:var(--done);}
+.badge-err {background:rgba(231,76,60,.12);color:var(--err);}
+.badge-warn{background:rgba(245,166,35,.12);color:var(--warn);}
+
+/* ── PIN DOBOZOK ── */
+.pin-row{display:flex;gap:.4rem;margin:.4rem 0;}
+.pin-box{width:38px;height:48px;background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;text-align:center;font-size:1.3rem;color:var(--text);outline:none;font-family:inherit;transition:border-color .2s;}
+.pin-box:focus{border-color:var(--accent);}
+
+/* ── TÉMA SZEKTOR ── */
+.theme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin-top:.5rem;}
+.theme-option{border:2px solid var(--border);border-radius:10px;padding:.7rem;cursor:pointer;text-align:center;transition:border-color .2s;}
+.theme-option:hover{border-color:var(--border-hi);}
+.theme-option.active{border-color:var(--accent);}
+.theme-swatch{width:32px;height:32px;border-radius:50%;margin:0 auto .4rem;display:block;}
+.theme-name{font-size:.73rem;color:var(--text-muted);}
+
+/* ── TÁBLÁZAT ── */
+.simple-table{width:100%;border-collapse:collapse;font-size:.8rem;}
+.simple-table th{background:var(--bg-deep);color:var(--text-muted);font-weight:600;padding:.45rem .6rem;text-align:left;border-bottom:1px solid var(--border);}
+.simple-table td{padding:.45rem .6rem;border-bottom:1px solid var(--border);}
+
+/* ── PROGRESS BAR ── */
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:.4rem 0;}
+.progress-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .3s;}
+
+/* ── GOMBOK ── */
+.btn{padding:.44rem .9rem;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.8rem;font-family:inherit;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+.btn-sm{padding:.28rem .55rem;font-size:.74rem;}
+.btn-danger{border-color:var(--err);color:var(--err);}
+.btn-danger:hover:not(:disabled){background:rgba(231,76,60,.1);}
+.btn-row{display:flex;gap:.5rem;margin-top:.8rem;}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOOLTIP (hover súgó) ── */
+[data-tip]{position:relative;}
+[data-tip]::after{
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
+  font-size: .72rem;
+  line-height: 1.45;
+  padding: .45rem .65rem;
+  border-radius: 7px;
+  white-space: pre-line;
+  max-width: 260px;
+  min-width: 120px;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(0,0,0,.5);
+}
+[data-tip]::before{
+  content:'';
+  position:absolute;
+  bottom: calc(100% + 1px);
+  left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent;
+  border-top-color:var(--border-hi);
+  opacity:0;
+  transition:opacity .15s;
+  pointer-events:none;
+  z-index:999;
+}
+[data-tip]:hover::after,[data-tip]:hover::before{opacity:1;}
+[data-tip].tip-left::after{left:0;transform:none;}
+[data-tip].tip-right::after{left:auto;right:0;transform:none;}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;left:1.2rem;width:9px;height:9px;border-radius:50%;background:var(--done);box-shadow:0 0 5px var(--done);animation:pulse 2s ease-in-out infinite;}
+.status-dot.red{background:var(--err);box-shadow:0 0 5px var(--err);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── TÉMA GOMBOK TOPBAR ── */
+.theme-bar{display:flex;gap:5px;}
+.theme-btn{width:14px;height:14px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="fomenu.html" style="color:var(--text-muted);text-decoration:none;font-size:.82rem;">← Főmenü</a>
+    <h1>⚙️ Beállítások</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <button class="btn btn-sm btn-danger tip-left" onclick="doLogout()"
+      data-tip="Kijelentkezés — JWT token törlése.&#10;Visszairányít a bejelentkezési oldalra.">Kilépés</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-label">Rendszer</div>
+    <div class="nav-item active" data-sec="smtp" onclick="navTo('smtp',this)">✉️ E-mail (SMTP)</div>
+    <div class="nav-item" data-sec="ai" onclick="navTo('ai',this)">🤖 AI / Claude</div>
+    <div class="nav-item" data-sec="scrape" onclick="navTo('scrape',this)">🕷 Webes árak</div>
+    <div class="nav-sep"></div>
+    <div class="nav-label">Felhasználó</div>
+    <div class="nav-item" data-sec="pin" onclick="navTo('pin',this)">🔒 PIN csere</div>
+    <div class="nav-item" data-sec="megj" onclick="navTo('megj',this)">👤 Megjelenés</div>
+    <div class="nav-sep"></div>
+    <div class="nav-label">Rendszer info</div>
+    <div class="nav-item" data-sec="info" onclick="navTo('info',this)">ℹ️ Verzió / DB</div>
+    <div class="nav-item" data-sec="backup" onclick="navTo('backup',this)">💾 Backup</div>
+  </nav>
+
+  <!-- TARTALOM -->
+  <div class="content">
+
+    <!-- ═══════ SMTP ═══════ -->
+    <div class="section active" id="sec-smtp">
+      <div class="section-title">E-mail beállítások (SMTP)</div>
+      <div class="section-desc">A 2FA kód és értesítések küldéséhez szükséges. Üres host esetén a kód a szerver naplóba kerül (fejlesztői mód).</div>
+
+      <div class="card">
+        <div class="card-title">SMTP szerver</div>
+        <div class="field-row">
+          <div class="field" style="flex:2;">
+            <label>SMTP host</label>
+            <input id="smtp_host" type="text" placeholder="smtp.gmail.com">
+          </div>
+          <div class="field" style="flex:0 0 100px;">
+            <label>Port</label>
+            <input id="smtp_port" type="number" value="587" min="1" max="65535">
+          </div>
+        </div>
+        <div class="field">
+          <label>Felhasználónév (e-mail cím)</label>
+          <input id="smtp_user" type="email" placeholder="kuldes@cegem.hu">
+        </div>
+        <div class="field">
+          <label>Jelszó</label>
+          <input id="smtp_pass" type="password" placeholder="••••••••">
+          <div class="field-hint">Gmail esetén App Password szükséges (nem a fióknyelszó).</div>
+        </div>
+        <div class="field">
+          <label>Feladó neve</label>
+          <input id="smtp_from_name" type="text" placeholder="CRT Rendszer">
+        </div>
+        <div class="toggle-row">
+          <label>STARTTLS</label>
+          <label class="toggle"><input type="checkbox" id="smtp_tls" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveSmtp()"
+            data-tip="SMTP beállítások mentése az adatbázisba.&#10;Szükséges: host, port, felhasználónév, jelszó.">Mentés</button>
+          <button class="btn" onclick="testSmtp()"
+            data-tip="Teszt emailt küld a bejelentkezett admin email-jére.&#10;Ellenőrzi az SMTP kapcsolatot és a hitelesítést.">▶ Teszt küldés</button>
+          <span id="smtpBadge"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ AI / CLAUDE ═══════ -->
+    <div class="section" id="sec-ai">
+      <div class="section-title">AI beállítások</div>
+      <div class="section-desc">Azonosítási motor: <strong>Claude API</strong> (elsődleges) → <strong>Ollama</strong> (helyi LLM fallback). Ha Claude kulcs nincs vagy hibás, az Ollama veszi át automatikusan.</div>
+
+      <div class="card">
+        <div class="card-title">Claude API <span>· elsődleges motor</span></div>
+        <div class="field">
+          <label>API kulcs <span>(Anthropic Console)</span></label>
+          <input id="claude_key" type="password" placeholder="sk-ant-…">
+          <div class="field-hint">A kulcs titkosítva kerül az adatbázisba.</div>
+        </div>
+        <div class="field">
+          <label>Modell</label>
+          <select id="claude_model">
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6 (alapértelmezett)</option>
+            <option value="claude-opus-4-8">claude-opus-4-8 (lassabb, drágább)</option>
+            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5-20251001 (gyors, olcsó)</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveAI()"
+            data-tip="Claude API kulcs és modell mentése.&#10;Paraméterek: API kulcs (sk-ant-…), modell neve.&#10;Titkosítva tárolódik az adatbázisban.">Mentés</button>
+          <button class="btn" onclick="testAI()"
+            data-tip="Tesztlekérdezést küld a Claude API-nak.&#10;Ellenőrzi: kulcs érvényes, modell elérhető, kvóta megvan.">▶ Kapcsolat teszt</button>
+          <span id="aiBadge"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Ollama <span>· helyi LLM fallback</span></div>
+        <div class="field-row">
+          <div class="field" style="flex:2">
+            <label>Ollama URL</label>
+            <input id="ollama_url" type="text" placeholder="http://localhost:11434">
+            <div class="field-hint">WSL2 módban automatikusan localhost:11434</div>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Modell</label>
+            <select id="ollama_model">
+              <option value="llama3:8b">llama3:8b (alapértelmezett)</option>
+              <option value="mistral:7b">mistral:7b</option>
+              <option value="llama3:70b">llama3:70b (nagy)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveOllama()"
+            data-tip="Ollama szerver URL és modell mentése.&#10;Paraméterek: URL (pl. http://localhost:11434), modell (pl. llama3:8b).&#10;WSL2-n automatikusan localhost:11434.">Mentés</button>
+          <button class="btn" onclick="testOllama()"
+            data-tip="Ellenőrzi az Ollama szerver elérhetőségét.&#10;Visszaadja az elérhető modellek listáját.&#10;Hiba esetén: Ollama nem fut vagy nem telepített.">▶ Ollama teszt</button>
+          <span id="ollamaBadge"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Azonosítási paraméterek</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Biztos határ (%)</label>
+            <input id="ai_conf_high" type="number" value="70" min="1" max="100">
+            <div class="field-hint">E felett: zöld / azonosított</div>
+          </div>
+          <div class="field">
+            <label>Bizonytalan határ (%)</label>
+            <input id="ai_conf_low" type="number" value="50" min="1" max="100">
+            <div class="field-hint">E alatt: piros / nem azonosított</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveAIParams()"
+            data-tip="AI azonosítási küszöbök mentése.&#10;Biztos határ (%): e felett zöld jelző (azonosítva).&#10;Bizonytalan határ (%): e alatt piros (nem azonosított).&#10;Javasolt: 70% / 50%.">Mentés</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ WEBES ÁRAK ═══════ -->
+    <div class="section" id="sec-scrape">
+      <div class="section-title">Webes árak</div>
+      <div class="section-desc">Automatikus árfrissítési ütemezés. A tényleges web forrásokat a <a href="webes_arak.html" style="color:var(--accent);">Webes árak</a> oldalon kezeld.</div>
+
+      <div class="card">
+        <div class="card-title">Ütemezés</div>
+        <div class="field">
+          <label>Scrape intervallum (óra)</label>
+          <input id="scrape_interval" type="number" value="24" min="1" max="168">
+          <div class="field-hint">Alapértelmezett: 24 óra. Min. 1 óra, max. 168 óra (1 hét).</div>
+        </div>
+        <div class="field">
+          <label>Max. áradat kora (nap)</label>
+          <input id="max_price_age" type="number" value="30" min="1" max="365">
+          <div class="field-hint">E napnál régebbi áradat sárga jelzőt kap az ajánlatban.</div>
+        </div>
+        <div class="toggle-row">
+          <label>Automatikus scrape engedélyezve</label>
+          <label class="toggle"><input type="checkbox" id="auto_scrape" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveScrape()"
+            data-tip="Scrape ütemezési beállítások mentése.&#10;Paraméterek: intervallum (1–168 óra), max. ár-kor (nap).&#10;Auto scrape be/ki kapcsoló.">Mentés</button>
+          <button class="btn" onclick="runScrapeNow()"
+            data-tip="Azonnal elindítja az összes aktív web forrás árfrissítését.&#10;Nem várja meg az ütemezett időpontot.&#10;Futhat a háttérben, eredmény: Webes árak oldal.">▶ Azonnali futtatás</button>
+          <span id="scrapeBadge"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Statisztika</div>
+        <div id="scrapeStats" style="font-size:.8rem;color:var(--text-muted);">Betöltés…</div>
+      </div>
+    </div>
+
+    <!-- ═══════ PIN CSERE ═══════ -->
+    <div class="section" id="sec-pin">
+      <div class="section-title">PIN csere</div>
+      <div class="section-desc">6 jegyű számsort adj meg. A jelenlegi PIN szükséges az ellenőrzéshez.</div>
+
+      <div class="card">
+        <div class="card-title">Jelenlegi PIN</div>
+        <div class="pin-row" id="pinCurrent"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Új PIN</div>
+        <div class="pin-row" id="pinNew"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Új PIN megerősítése</div>
+        <div class="pin-row" id="pinConfirm"></div>
+        <div class="btn-row" style="margin-top:1rem;">
+          <button class="btn btn-primary" onclick="changePin()"
+            data-tip="Bejelentkezett felhasználó PIN-jét cseréli.&#10;Szükséges: jelenlegi PIN + új PIN (2×).&#10;Csak saját PIN cserélhető itt — admin másét az Admin oldalon.">PIN csere</button>
+          <span id="pinBadge"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ MEGJELENÉS ═══════ -->
+    <div class="section" id="sec-megj">
+      <div class="section-title">Megjelenés</div>
+      <div class="section-desc">Szín téma kiválasztása. Az összes oldalon érvényes.</div>
+
+      <div class="card">
+        <div class="card-title">Téma</div>
+        <div class="theme-grid" id="themeGrid">
+          <div class="theme-option" data-t="ejszaka" onclick="setTheme('ejszaka')">
+            <span class="theme-swatch" style="background:#7c6af7;"></span>
+            <div class="theme-name">Éjszaka</div>
+          </div>
+          <div class="theme-option" data-t="ocean" onclick="setTheme('ocean')">
+            <span class="theme-swatch" style="background:#38b2e0;"></span>
+            <div class="theme-name">Óceán</div>
+          </div>
+          <div class="theme-option" data-t="forest" onclick="setTheme('forest')">
+            <span class="theme-swatch" style="background:#4caf72;"></span>
+            <div class="theme-name">Erdő</div>
+          </div>
+          <div class="theme-option" data-t="steel" onclick="setTheme('steel')">
+            <span class="theme-swatch" style="background:#6a8fc8;"></span>
+            <div class="theme-name">Acél</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Ajánlat beállítások</div>
+        <div class="field">
+          <label>Ajánlat érvényessége (nap)</label>
+          <input id="quote_validity" type="number" value="30" min="1" max="365">
+        </div>
+        <div class="field">
+          <label>Cég neve (fejléc)</label>
+          <input id="company_name" type="text" placeholder="Civil Rendszertechnika Kft.">
+        </div>
+        <div class="field">
+          <label>Cég adószáma</label>
+          <input id="company_tax" type="text" placeholder="12345678-2-41">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveAppConf()"
+            data-tip="Cég- és ajánlat-beállítások mentése.&#10;Paraméterek: cég neve (fejlécbe kerül), adószám, ajánlat érvényessége (nap).&#10;Megjelenik: xlsx/docx/PDF exportokban.">Mentés</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ VERZIÓ / DB INFO ═══════ -->
+    <div class="section" id="sec-info">
+      <div class="section-title">Rendszer információk</div>
+      <div class="section-desc">Csak olvasható rendszeradatok.</div>
+
+      <div class="card">
+        <div class="card-title">Backend</div>
+        <div id="sysInfo" style="font-size:.82rem;line-height:2;color:var(--text-dim);">Betöltés…</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Adatbázis</div>
+        <div id="dbInfo" style="font-size:.82rem;line-height:2;color:var(--text-dim);">Betöltés…</div>
+      </div>
+    </div>
+
+    <!-- ═══════ BACKUP ═══════ -->
+    <div class="section" id="sec-backup">
+      <div class="section-title">Backup</div>
+      <div class="section-desc">Adatbázis export és visszaállítás. A db_data\ mappa ki van zárva a Google Drive szinkronból — manuális backup szükséges.</div>
+
+      <div class="card">
+        <div class="card-title">Export</div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.8rem;">
+          A teljes adatbázist JSON formátumban exportálja a <code>db_data\backup_YYYYMMDD.json</code> fájlba.
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="runBackup()"
+            data-tip="Teljes adatbázis JSON exportálása.&#10;Helye: db_data\backup_YYYYMMDD_HHMMSS.json&#10;Tartalom: összes tábla (users nélkül).&#10;Ajánlott: rendszeres mentés előtt futtatni.">📥 Export indítása</button>
+          <span id="backupBadge"></span>
+        </div>
+        <div id="backupProgress" style="display:none;margin-top:.8rem;">
+          <div class="progress-bar"><div class="progress-fill" id="bpFill" style="width:0%"></div></div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem;" id="bpLabel">Folyamatban…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Visszaállítás <span>– csak admin</span></div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.8rem;">
+          Csak JSON export fájlból állítható vissza. Az aktuális adat <strong>felülíródik</strong>.
+        </div>
+        <div class="field">
+          <label>Backup fájl elérési útja</label>
+          <input id="restorePath" type="text" placeholder="db_data\backup_20260101.json">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-danger tip-left" onclick="confirmRestore()"
+            data-tip="⚠ FIGYELEM: az aktuális adat FELÜLÍRÓDIK!&#10;Csak JSON backup fájlból állítható vissza.&#10;Paraméter: backup fájl teljes elérési útja.&#10;Csak admin jogosultsággal elérhető.">♻️ Visszaállítás</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+
+<div class="status-dot" id="statusDot"></div>
+
+<script>
+const API = 'http://localhost:8000';
+const role = localStorage.getItem('crt-role');
+function getToken(){ return localStorage.getItem('crt-token')||''; }
+function authH()   { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+if(!getToken()) window.location.href='login.html';
+
+// ── TÉMÁK ─────────────────────────────────────────────────
+const THEMES=['ejszaka','ocean','forest','steel'];
+document.getElementById('themeBar').innerHTML=THEMES.map(t=>
+  `<button class="theme-btn" data-t="${t}" onclick="setTheme('${t}')"></button>`).join('');
+
+function setTheme(t){
+  document.documentElement.dataset.theme=t;
+  localStorage.setItem('crt-theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+  document.querySelectorAll('.theme-option').forEach(o=>o.classList.toggle('active',o.dataset.t===t));
+}
+(()=>{ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+
+function doLogout(){
+  fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}).catch(()=>{});
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href='login.html';
+}
+
+// ── NAV ───────────────────────────────────────────────────
+function navTo(sec,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('sec-'+sec).classList.add('active');
+  el.classList.add('active');
+  if(sec==='info') loadSysInfo();
+  if(sec==='scrape') loadScrapeStats();
+}
+
+// ── SMTP ──────────────────────────────────────────────────
+async function loadSmtp(){
+  try{
+    const res=await fetch(`${API}/auth/admin/config`,{headers:authH()});
+    if(!res.ok) return;
+    const d=await res.json();
+    const c=d.config||{};
+    document.getElementById('smtp_host').value=c.smtp_host||'';
+    document.getElementById('smtp_port').value=c.smtp_port||587;
+    document.getElementById('smtp_user').value=c.smtp_user||'';
+    document.getElementById('smtp_from_name').value=c.smtp_from_name||'CRT Rendszer';
+    document.getElementById('smtp_tls').checked=c.smtp_tls!==false;
+  } catch{}
+}
+
+async function saveSmtp(){
+  const body={
+    smtp_host:      document.getElementById('smtp_host').value.trim(),
+    smtp_port:      parseInt(document.getElementById('smtp_port').value)||587,
+    smtp_user:      document.getElementById('smtp_user').value.trim(),
+    smtp_from_name: document.getElementById('smtp_from_name').value.trim()||'CRT Rendszer',
+    smtp_tls:       document.getElementById('smtp_tls').checked,
+  };
+  const pass=document.getElementById('smtp_pass').value;
+  if(pass) body.smtp_pass=pass;
+  await saveConfig(body,'smtpBadge');
+}
+
+async function testSmtp(){
+  const badge=document.getElementById('smtpBadge');
+  badge.innerHTML='<span class="spinner"></span>';
+  try{
+    const res=await fetch(`${API}/auth/admin/config/test-smtp`,{method:'POST',headers:authH()});
+    const d=await res.json();
+    badge.innerHTML=res.ok
+      ? `<span class="test-badge badge-ok">✓ ${d.message||'OK'}</span>`
+      : `<span class="test-badge badge-err">✗ ${d.detail||'Hiba'}</span>`;
+  } catch{ badge.innerHTML='<span class="test-badge badge-err">✗ Szerver hiba</span>'; }
+}
+
+// ── AI ────────────────────────────────────────────────────
+async function loadAI(){
+  try{
+    const res=await fetch(`${API}/auth/admin/config`,{headers:authH()});
+    if(!res.ok) return;
+    const d=await res.json();
+    const c=d.config||{};
+    document.getElementById('claude_model').value=c.claude_model||'claude-sonnet-4-6';
+    document.getElementById('ai_conf_high').value=c.ai_conf_high||70;
+    document.getElementById('ai_conf_low').value=c.ai_conf_low||50;
+    if(c.claude_api_key) document.getElementById('claude_key').placeholder='••• (beállítva) •••';
+    if(c.ollama_url)   document.getElementById('ollama_url').value=c.ollama_url;
+    if(c.ollama_model) document.getElementById('ollama_model').value=c.ollama_model;
+  } catch{}
+}
+
+async function saveAI(){
+  const key=document.getElementById('claude_key').value.trim();
+  const body={claude_model:document.getElementById('claude_model').value};
+  if(key) body.claude_api_key=key;
+  await saveConfig(body,'aiBadge');
+}
+
+async function saveOllama(){
+  const body={
+    ollama_url:   document.getElementById('ollama_url').value.trim()||'http://localhost:11434',
+    ollama_model: document.getElementById('ollama_model').value,
+  };
+  await saveConfig(body,'ollamaBadge');
+}
+
+async function saveAIParams(){
+  const body={
+    ai_conf_high: parseInt(document.getElementById('ai_conf_high').value)||70,
+    ai_conf_low:  parseInt(document.getElementById('ai_conf_low').value)||50,
+  };
+  await saveConfig(body,'aiBadge');
+}
+
+async function testAI(){
+  const badge=document.getElementById('aiBadge');
+  badge.innerHTML='<span class="spinner"></span>';
+  try{
+    const res=await fetch(`${API}/cikktorzs/identify`,{
+      method:'POST',headers:authH(),
+      body:JSON.stringify({items:['teszt kábel 10m']})
+    });
+    const d=await res.json();
+    badge.innerHTML=res.ok
+      ? `<span class="test-badge badge-ok">✓ ${d.source||'AI'} OK (${d.tokens_used||'?'} token)</span>`
+      : `<span class="test-badge badge-err">✗ ${d.detail||'Hiba'}</span>`;
+  } catch{ badge.innerHTML='<span class="test-badge badge-err">✗ Szerver hiba</span>'; }
+}
+
+async function testOllama(){
+  const badge=document.getElementById('ollamaBadge');
+  badge.innerHTML='<span class="spinner"></span>';
+  try{
+    const res=await fetch(`${API}/ollama/status`,{headers:authH()});
+    const d=await res.json();
+    if(d.ok){
+      const models=d.models.length?d.models.join(', '):'nincs modell';
+      badge.innerHTML=`<span class="test-badge badge-ok">✓ Elérhető · ${models}</span>`;
+    } else {
+      badge.innerHTML=`<span class="test-badge badge-err">✗ Nem elérhető</span>`;
+    }
+  } catch{ badge.innerHTML='<span class="test-badge badge-err">✗ Szerver hiba</span>'; }
+}
+
+// ── SCRAPE ────────────────────────────────────────────────
+async function loadScrapeStats(){
+  const el=document.getElementById('scrapeStats');
+  try{
+    const res=await fetch(`${API}/prices/stats`,{headers:authH()});
+    const d=await res.json();
+    el.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+        <div>Elérhető forrás:<strong> ${d.source_count??'–'}</strong></div>
+        <div>Áradat rekord:<strong> ${d.total??'–'}</strong></div>
+        <div>Friss (≤7 nap):<strong> ${d.fresh_7d??'–'}</strong></div>
+        <div>Utolsó frissítés:<strong> ${d.last_update?d.last_update.slice(0,10):'–'}</strong></div>
+      </div>`;
+  } catch{ el.innerHTML='<span style="color:var(--err);">Nem sikerült betölteni.</span>'; }
+}
+
+async function saveScrape(){
+  const body={
+    scrape_interval_hours: parseInt(document.getElementById('scrape_interval').value)||24,
+    max_price_age_days:    parseInt(document.getElementById('max_price_age').value)||30,
+    auto_scrape:           document.getElementById('auto_scrape').checked,
+  };
+  await saveConfig(body,'scrapeBadge');
+}
+
+async function runScrapeNow(){
+  const badge=document.getElementById('scrapeBadge');
+  badge.innerHTML='<span class="spinner"></span>';
+  try{
+    const res=await fetch(`${API}/web/scrape/run`,{method:'POST',headers:authH()});
+    const d=await res.json();
+    badge.innerHTML=res.ok
+      ? `<span class="test-badge badge-ok">✓ Elindítva</span>`
+      : `<span class="test-badge badge-warn">⚠ ${d.detail||'Nem sikerült'}</span>`;
+  } catch{ badge.innerHTML='<span class="test-badge badge-err">✗ Hiba</span>'; }
+}
+
+// ── PIN CSERE ─────────────────────────────────────────────
+function buildPinBoxes(containerId,prefix){
+  const c=document.getElementById(containerId);
+  c.innerHTML='';
+  for(let i=0;i<6;i++){
+    const inp=document.createElement('input');
+    inp.type='tel'; inp.maxLength=1; inp.className='pin-box'; inp.id=`${prefix}_${i}`;
+    inp.inputMode='numeric'; inp.pattern='[0-9]';
+    inp.addEventListener('input',e=>{
+      e.target.value=e.target.value.replace(/\D/g,'');
+      if(e.target.value&&i<5) document.getElementById(`${prefix}_${i+1}`).focus();
+    });
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Backspace'&&!e.target.value&&i>0) document.getElementById(`${prefix}_${i-1}`).focus();
+    });
+    inp.addEventListener('paste',e=>{
+      e.preventDefault();
+      const digits=(e.clipboardData.getData('text').replace(/\D/g,'')).slice(0,6);
+      [...digits].forEach((d,j)=>{ const t=document.getElementById(`${prefix}_${j}`); if(t) t.value=d; });
+      const last=Math.min(digits.length,5);
+      const tgt=document.getElementById(`${prefix}_${last}`); if(tgt) tgt.focus();
+    });
+    c.appendChild(inp);
+  }
+}
+
+function getPinVal(prefix){ return Array.from({length:6},(_,i)=>document.getElementById(`${prefix}_${i}`).value).join(''); }
+function clearPin(prefix){ for(let i=0;i<6;i++) document.getElementById(`${prefix}_${i}`).value=''; document.getElementById(`${prefix}_0`).focus(); }
+
+buildPinBoxes('pinCurrent','pc');
+buildPinBoxes('pinNew','pn');
+buildPinBoxes('pinConfirm','pk');
+
+async function changePin(){
+  const cur=getPinVal('pc'), nw=getPinVal('pn'), conf=getPinVal('pk');
+  const badge=document.getElementById('pinBadge');
+  if(cur.length!==6||nw.length!==6||conf.length!==6){
+    badge.innerHTML='<span class="test-badge badge-err">Mindhárom PIN megadása kötelező (6 jegy)</span>'; return;
+  }
+  if(nw!==conf){ badge.innerHTML='<span class="test-badge badge-err">Az új PIN és a megerősítés nem egyezik</span>'; return; }
+  if(nw===cur)  { badge.innerHTML='<span class="test-badge badge-warn">Az új PIN megegyezik a régivel</span>'; return; }
+  try{
+    const res=await fetch(`${API}/auth/change-pin`,{
+      method:'POST',headers:authH(),
+      body:JSON.stringify({current_pin:cur,new_pin:nw})
+    });
+    const d=await res.json();
+    if(res.ok){
+      badge.innerHTML='<span class="test-badge badge-ok">✓ PIN sikeresen módosítva</span>';
+      clearPin('pc'); clearPin('pn'); clearPin('pk');
+    } else {
+      badge.innerHTML=`<span class="test-badge badge-err">✗ ${d.detail||'Hiba'}</span>`;
+    }
+  } catch{ badge.innerHTML='<span class="test-badge badge-err">✗ Szerver hiba</span>'; }
+}
+
+// ── APP CONF ──────────────────────────────────────────────
+async function saveAppConf(){
+  const body={
+    quote_validity_days: parseInt(document.getElementById('quote_validity').value)||30,
+    company_name:        document.getElementById('company_name').value.trim()||null,
+    company_tax:         document.getElementById('company_tax').value.trim()||null,
+  };
+  await saveConfig(body,null);
+  showToast('Mentve');
+}
+
+// ── VERZIÓ / DB INFO ──────────────────────────────────────
+async function loadSysInfo(){
+  try{
+    const [pingRes,dbRes]=await Promise.all([
+      fetch(`${API}/`,{headers:authH()}),
+      fetch(`${API}/db/test`,{headers:authH()}),
+    ]);
+    const ping=await pingRes.json();
+    const db=await dbRes.json();
+    document.getElementById('sysInfo').innerHTML=`
+      Verzió: <strong>${ping.version||'–'}</strong><br>
+      Szerver idő: <strong>${ping.time_ntp||'–'}</strong><br>
+      Státusz: <strong style="color:var(--done);">${ping.status||'–'}</strong>
+    `;
+    document.getElementById('dbInfo').innerHTML=`
+      PostgreSQL: <strong>${db.version?.split(' ').slice(0,2).join(' ')||'–'}</strong><br>
+      Adatbázis: <strong>${db.database||'–'}</strong><br>
+      Felhasználó: <strong>${db.user||'–'}</strong><br>
+      Szerver idő: <strong>${db.time||'–'}</strong>
+    `;
+  } catch{
+    document.getElementById('sysInfo').innerHTML='<span style="color:var(--err);">Betöltési hiba</span>';
+  }
+}
+
+// ── BACKUP ────────────────────────────────────────────────
+async function runBackup(){
+  const badge=document.getElementById('backupBadge');
+  const prog=document.getElementById('backupProgress');
+  badge.innerHTML='<span class="spinner"></span>';
+  prog.style.display='block';
+  document.getElementById('bpFill').style.width='20%';
+  document.getElementById('bpLabel').textContent='Export folyamatban…';
+
+  try{
+    const res=await fetch(`${API}/admin/backup`,{method:'POST',headers:authH()});
+    const d=await res.json();
+    document.getElementById('bpFill').style.width='100%';
+    if(res.ok){
+      document.getElementById('bpLabel').textContent=`Kész: ${d.path||'–'} (${d.size_kb||'?'} KB)`;
+      badge.innerHTML='<span class="test-badge badge-ok">✓ Kész</span>';
+    } else {
+      document.getElementById('bpLabel').textContent=`Hiba: ${d.detail||''}`;
+      badge.innerHTML='<span class="test-badge badge-err">✗ Hiba</span>';
+    }
+  } catch{
+    document.getElementById('bpLabel').textContent='Szerver hiba';
+    badge.innerHTML='<span class="test-badge badge-err">✗ Szerver hiba</span>';
+  }
+}
+
+async function confirmRestore(){
+  const path=document.getElementById('restorePath').value.trim();
+  if(!path){ showToast('Add meg a fájl elérési útját','err'); return; }
+  if(!confirm(`Biztosan visszaállítod az adatbázist innen?\n${path}\n\nAz aktuális adat felülíródik!`)) return;
+  showToast('Visszaállítás: v0.6-ban kerül be','warn');
+}
+
+// ── KÖZÖS CONFIG MENTÉS ───────────────────────────────────
+async function saveConfig(body,badgeId){
+  const badge=badgeId?document.getElementById(badgeId):null;
+  if(badge) badge.innerHTML='<span class="spinner"></span>';
+  try{
+    const res=await fetch(`${API}/auth/admin/config`,{method:'PATCH',headers:authH(),body:JSON.stringify(body)});
+    const d=await res.json();
+    if(res.ok){
+      if(badge) badge.innerHTML='<span class="test-badge badge-ok">✓ Mentve</span>';
+      else showToast('✓ Mentve');
+    } else {
+      if(badge) badge.innerHTML=`<span class="test-badge badge-err">✗ ${d.detail||'Hiba'}</span>`;
+      else showToast(d.detail||'Mentési hiba','err');
+    }
+  } catch{
+    if(badge) badge.innerHTML='<span class="test-badge badge-err">✗ Szerver hiba</span>';
+    else showToast('Szerver hiba','err');
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+let _tt=null;
+function showToast(msg,type='ok'){
+  let el=document.getElementById('_toast');
+  if(!el){ el=document.createElement('div'); el.id='_toast';
+    el.style.cssText='position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-hi);border-radius:8px;padding:.55rem 1.1rem;font-size:.82rem;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;';
+    document.body.appendChild(el); }
+  el.textContent=msg;
+  el.style.borderColor=type==='ok'?'var(--done)':type==='warn'?'var(--warn)':'var(--err)';
+  el.style.color=type==='ok'?'var(--done)':type==='warn'?'var(--warn)':'var(--err)';
+  el.style.opacity='1';
+  if(_tt) clearTimeout(_tt);
+  _tt=setTimeout(()=>el.style.opacity='0',2400);
+}
+
+// ── STÁTUSZ DOT ───────────────────────────────────────────
+async function checkStatus(){
+  const dot=document.getElementById('statusDot');
+  try{
+    const res=await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d=await res.json();
+    dot.className=d.status==='green'?'status-dot':'status-dot red';
+  } catch{ dot.className='status-dot red'; }
+}
+
+// ── INIT ──────────────────────────────────────────────────
+loadSmtp();
+loadAI();
+checkStatus();
+setInterval(checkStatus,30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT Ajánlatsegéd – Whitebook v1.0</title>
+<style>
+:root {
+  --bg:       #0d0d14;
+  --card:     #16161f;
+  --card2:    #1a1a2e;
+  --border:   #2a2a3e;
+  --accent:   #7c6af7;
+  --accent2:  #3d3478;
+  --done:     #3ecf8e;
+  --warn:     #f5a623;
+  --err:      #e74c3c;
+  --text:     #e8e8f0;
+  --dim:      #9898b8;
+  --muted:    #5a5a7a;
+  --code-bg:  #0a0a14;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── SIDEBAR ── */
+nav {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.5rem 0;
+}
+.nav-logo {
+  padding: 0 1.2rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .8rem;
+}
+.nav-logo h2 { font-size: .95rem; font-weight: 800; color: var(--accent); }
+.nav-logo p  { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+.nav-badge {
+  display: inline-block;
+  background: var(--accent2);
+  color: var(--accent);
+  font-size: .65rem;
+  font-weight: 700;
+  padding: .15rem .5rem;
+  border-radius: 99px;
+  margin-top: .3rem;
+}
+nav a {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .42rem 1.2rem;
+  font-size: .8rem;
+  color: var(--dim);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all .15s;
+}
+nav a:hover { background: rgba(255,255,255,.04); color: var(--text); }
+nav a.active { border-left-color: var(--accent); color: var(--text); background: rgba(124,106,247,.08); }
+nav a .nav-icon { font-size: .95rem; width: 1.2rem; text-align: center; }
+.nav-sep { height: 1px; background: var(--border); margin: .5rem 1rem; }
+
+/* ── MAIN ── */
+main {
+  flex: 1;
+  max-width: 900px;
+  padding: 2.5rem 3rem;
+  overflow: hidden;
+}
+
+/* ── FEDŐLAP ── */
+.cover {
+  text-align: center;
+  padding: 3rem 0 4rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 3rem;
+}
+.cover-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border-radius: 20px;
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 32px rgba(124,106,247,.3);
+}
+.cover h1 { font-size: 2.4rem; font-weight: 900; color: var(--text); letter-spacing: -.02em; }
+.cover h1 span { color: var(--accent); }
+.cover .sub { font-size: 1rem; color: var(--dim); margin-top: .5rem; }
+.cover .meta { font-size: .78rem; color: var(--muted); margin-top: 1.5rem; }
+.cover .version-chip {
+  display: inline-block;
+  background: rgba(62,207,142,.15);
+  border: 1px solid rgba(62,207,142,.3);
+  color: var(--done);
+  font-size: .8rem;
+  font-weight: 700;
+  padding: .3rem 1rem;
+  border-radius: 99px;
+  margin-top: 1rem;
+}
+
+/* ── SZEKCIÓK ── */
+section {
+  margin-bottom: 3.5rem;
+  scroll-margin-top: 2rem;
+}
+h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: .5rem;
+  border-bottom: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+h2 .sec-num {
+  background: var(--accent);
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 800;
+  padding: .2rem .5rem;
+  border-radius: 6px;
+  letter-spacing: .04em;
+}
+h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--done);
+  margin: 1.5rem 0 .6rem;
+}
+p { color: var(--dim); margin-bottom: .8rem; }
+
+/* ── KÁRTYÁK ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1rem;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: .8rem;
+  margin-bottom: 1rem;
+}
+.feat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  transition: border-color .2s;
+}
+.feat-card:hover { border-color: var(--accent); }
+.feat-card .icon { font-size: 1.5rem; margin-bottom: .4rem; }
+.feat-card .title { font-size: .85rem; font-weight: 700; color: var(--text); margin-bottom: .2rem; }
+.feat-card .desc  { font-size: .75rem; color: var(--dim); line-height: 1.4; }
+
+/* ── TÁBLÁK ── */
+.tbl-wrap { overflow-x: auto; margin-bottom: 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+thead th {
+  background: var(--card2);
+  color: var(--accent);
+  font-weight: 700;
+  padding: .6rem .9rem;
+  text-align: left;
+  font-size: .74rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--accent2);
+}
+tbody tr { border-bottom: 1px solid rgba(255,255,255,.04); }
+tbody tr:hover { background: rgba(255,255,255,.02); }
+tbody td { padding: .55rem .9rem; color: var(--dim); vertical-align: top; }
+tbody td:first-child { color: var(--text); font-weight: 600; }
+.mono { font-family: Consolas, monospace; font-size: .78rem; color: var(--accent); }
+
+/* ── KÓD ── */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  font-family: Consolas, monospace;
+  color: var(--done);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+  white-space: pre;
+}
+code { font-family: Consolas, monospace; font-size: .85em; color: var(--accent); background: rgba(124,106,247,.12); padding: .1em .35em; border-radius: 4px; }
+
+/* ── AI PIPELINE DIAGRAM ── */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 1rem 0;
+}
+.pipe-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  position: relative;
+}
+.pipe-step::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 40px;
+  bottom: -20px;
+  width: 2px;
+  background: var(--border);
+}
+.pipe-step:last-child::before { display: none; }
+.pipe-num {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: .85rem;
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+.pipe-body {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .8rem 1rem;
+  flex: 1;
+  margin-bottom: 20px;
+}
+.pipe-body h4 { font-size: .9rem; font-weight: 700; margin-bottom: .2rem; }
+.pipe-body p  { font-size: .78rem; color: var(--dim); margin: 0; }
+.pipe-body .tag {
+  display: inline-block;
+  font-size: .67rem;
+  font-weight: 700;
+  padding: .1rem .45rem;
+  border-radius: 4px;
+  margin-top: .3rem;
+}
+
+/* ── ARCH DIAGRAM ── */
+.arch-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.4rem;
+  margin-bottom: 1rem;
+}
+.arch-title {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+.arch-services {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: .6rem;
+}
+.svc {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .6rem .8rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.svc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.svc-info { flex: 1; }
+.svc-name { font-size: .8rem; font-weight: 600; color: var(--text); }
+.svc-port { font-size: .7rem; color: var(--muted); }
+
+/* ── TÖRTÉNET TIMELINE ── */
+.timeline { position: relative; padding-left: 2rem; }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: .5rem;
+  top: .5rem;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent), var(--border));
+}
+.tl-item { position: relative; margin-bottom: 1.2rem; }
+.tl-dot {
+  position: absolute;
+  left: -1.7rem;
+  top: .3rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--bg);
+}
+.tl-item.done .tl-dot { background: var(--done); border-color: var(--done); }
+.tl-item.done .tl-ver { color: var(--done); }
+.tl-ver { font-size: .78rem; font-weight: 700; color: var(--dim); }
+.tl-date { font-size: .72rem; color: var(--muted); margin-left: .5rem; }
+.tl-text { font-size: .82rem; color: var(--dim); margin-top: .1rem; }
+
+/* ── BADGE ── */
+.badge {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 99px;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.badge-done { background: rgba(62,207,142,.12); color: var(--done); border: 1px solid rgba(62,207,142,.25); }
+.badge-warn { background: rgba(245,166,35,.12); color: var(--warn); }
+.badge-info { background: rgba(124,106,247,.15); color: var(--accent); }
+
+/* ── STAT ROW ── */
+.stat-row { display: flex; gap: .8rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.stat { flex: 1; min-width: 100px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; text-align: center; }
+.stat-val { font-size: 1.8rem; font-weight: 900; color: var(--accent); }
+.stat-lbl { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 800px) {
+  nav { display: none; }
+  main { padding: 1.5rem; }
+}
+@media print {
+  nav { display: none; }
+  main { max-width: 100%; padding: 1rem; }
+  .feat-card:hover { border-color: var(--border); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<nav id="sidebar">
+  <div class="nav-logo">
+    <h2>CRT Ajánlatsegéd</h2>
+    <p>Civil Rendszertechnika Kft.</p>
+    <span class="nav-badge">v1.0 · 2026-06-10</span>
+  </div>
+  <a href="#cover"       class="active"><span class="nav-icon">🏠</span> Fedőlap</a>
+  <a href="#sec1"><span class="nav-icon">📋</span> 1. Rendszer áttekintés</a>
+  <a href="#sec2"><span class="nav-icon">🏗</span> 2. Architektúra</a>
+  <a href="#sec3"><span class="nav-icon">⚙️</span> 3. Tech stack</a>
+  <a href="#sec4"><span class="nav-icon">🗄</span> 4. Adatbázis séma</a>
+  <a href="#sec5"><span class="nav-icon">🤖</span> 5. AI pipeline</a>
+  <a href="#sec6"><span class="nav-icon">🌐</span> 6. API végpontok</a>
+  <a href="#sec7"><span class="nav-icon">💻</span> 7. Frontend oldalak</a>
+  <a href="#sec8"><span class="nav-icon">🔒</span> 8. Biztonság</a>
+  <a href="#sec9"><span class="nav-icon">🚀</span> 9. Telepítés</a>
+  <a href="#sec10"><span class="nav-icon">⚙️</span> 10. Konfiguráció</a>
+  <a href="#sec11"><span class="nav-icon">📁</span> 11. Mappa struktúra</a>
+  <a href="#sec12"><span class="nav-icon">📅</span> 12. Historia</a>
+  <a href="#sec13"><span class="nav-icon">⚠️</span> 13. Korlátok</a>
+</nav>
+
+<!-- ── MAIN ── -->
+<main>
+
+<!-- FEDŐLAP -->
+<div class="cover" id="cover">
+  <div class="cover-logo">🏭</div>
+  <h1>CRT <span>Ajánlatsegéd</span></h1>
+  <p class="sub">Helyi AI alapú ajánlatkezelő rendszer · Civil Rendszertechnika Kft.</p>
+  <div class="version-chip">v1.0 – Teljes · LoRA pipeline kész</div>
+  <p class="meta">Utolsó frissítés: 2026-06-10 &nbsp;·&nbsp; FastAPI + PostgreSQL + Ollama + ChromaDB</p>
+</div>
+
+<!-- STAT ROW -->
+<div class="stat-row">
+  <div class="stat"><div class="stat-val">13</div><div class="stat-lbl">Backend router</div></div>
+  <div class="stat"><div class="stat-val">15</div><div class="stat-lbl">DB tábla</div></div>
+  <div class="stat"><div class="stat-lbl" style="font-size:.8rem;margin-top:.6rem">Frontend oldalak</div><div class="stat-val">13</div></div>
+  <div class="stat"><div class="stat-val">~50</div><div class="stat-lbl">API endpoint</div></div>
+  <div class="stat"><div class="stat-val">100<span style="font-size:1rem">%</span></div><div class="stat-lbl">Kész</div></div>
+</div>
+
+
+<!-- 1. RENDSZER ÁTTEKINTÉS -->
+<section id="sec1">
+  <h2><span class="sec-num">01</span> Rendszer áttekintés</h2>
+  <p>A CRT Ajánlatsegéd egy <strong style="color:var(--text)">helyi, offline-képes</strong> AI alapú ajánlatkészítő szoftver, amelyet a Civil Rendszertechnika Kft. villamossági és épületautomatizálási ajánlatkészítési folyamatának automatizálására fejlesztettünk. Minden adat helyi gépen marad.</p>
+  <div class="card-grid">
+    <div class="feat-card"><div class="icon">🤖</div><div class="title">AI azonosítás</div><div class="desc">Ajánlatkérő dokumentumból automatikusan azonosítja a tételeket — Claude API, LoRA vagy Ollama</div></div>
+    <div class="feat-card"><div class="icon">💰</div><div class="title">Árfigyelés</div><div class="desc">Webes scraping + kézi ár bevitel, forrás tracking, históriával</div></div>
+    <div class="feat-card"><div class="icon">📄</div><div class="title">Ajánlatkészítés</div><div class="desc">3 indítási mód, cell-szintű státuszkövetés, xlsx/docx/PDF export</div></div>
+    <div class="feat-card"><div class="icon">🦙</div><div class="title">Helyi LLM</div><div class="desc">Ollama (llama3:8b / mistral:7b) — internet nélkül is működik</div></div>
+    <div class="feat-card"><div class="icon">🧠</div><div class="title">LoRA finomhangolás</div><div class="desc">Saját jóváhagyott példákból fine-tuned AI modell — CRT-specifikus tételekre</div></div>
+    <div class="feat-card"><div class="icon">🗺</div><div class="title">Rajz elemzés</div><div class="desc">LLaVA Vision alapú tervrajz és fotó elemzés — termékek automatikus felismerése</div></div>
+    <div class="feat-card"><div class="icon">🔒</div><div class="title">Adatbiztonság</div><div class="desc">Minden adat helyi gépen, bcrypt PIN + 2FA OTP + JWT + teljes audit log</div></div>
+    <div class="feat-card"><div class="icon">🔍</div><div class="title">Vektoros keresés</div><div class="desc">ChromaDB + sentence-transformers — szemantikus cikktörzs keresés</div></div>
+  </div>
+</section>
+
+
+<!-- 2. ARCHITEKTÚRA -->
+<section id="sec2">
+  <h2><span class="sec-num">02</span> Architektúra</h2>
+  <h3>Telepítési modell (WSL2 – ajánlott)</h3>
+  <div class="arch-box">
+    <div class="arch-title">Windows szerver (Win10/11, x64, 250 GB SSD) → WSL2 Ubuntu 22.04 "CRT"</div>
+    <div class="arch-services">
+      <div class="svc"><div class="svc-dot" style="background:#3ecf8e"></div><div class="svc-info"><div class="svc-name">PostgreSQL 16</div><div class="svc-port">:5432</div></div></div>
+      <div class="svc"><div class="svc-dot" style="background:#7c6af7"></div><div class="svc-info"><div class="svc-name">FastAPI/uvicorn</div><div class="svc-port">:8000 (2 worker)</div></div></div>
+      <div class="svc"><div class="svc-dot" style="background:#38b2e0"></div><div class="svc-info"><div class="svc-name">ChromaDB</div><div class="svc-port">:8001</div></div></div>
+      <div class="svc"><div class="svc-dot" style="background:#f5a623"></div><div class="svc-info"><div class="svc-name">Ollama LLM</div><div class="svc-port">:11434</div></div></div>
+      <div class="svc"><div class="svc-dot" style="background:#e74c3c"></div><div class="svc-info"><div class="svc-name">Nginx</div><div class="svc-port">:80 (UI)</div></div></div>
+    </div>
+  </div>
+  <h3>Helyigény</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Komponens</th><th>Méret</th></tr></thead>
+      <tbody>
+        <tr><td>WSL2 Ubuntu base</td><td>~1.2 GB</td></tr>
+        <tr><td>Python + csomagok (LoRA-val)</td><td>~1.2 GB</td></tr>
+        <tr><td>llama3:8b + mistral:7b + llava:7b</td><td>~13.6 GB</td></tr>
+        <tr><td>ChromaDB + vektorok + LoRA adapter</td><td>~1.0 GB</td></tr>
+        <tr><td>CRT kód + UI + PostgreSQL adatok</td><td>~200 MB</td></tr>
+        <tr><td style="color:var(--done);font-weight:700">ÖSSZESEN</td><td style="color:var(--done);font-weight:700">~17.5 GB (szabad: ~232 GB)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<!-- 3. TECH STACK -->
+<section id="sec3">
+  <h2><span class="sec-num">03</span> Technológiai stack</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Réteg</th><th>Technológia</th></tr></thead>
+      <tbody>
+        <tr><td>Backend</td><td class="mono">Python 3.11 · FastAPI 0.115 · SQLAlchemy 2.0</td></tr>
+        <tr><td>Adatbázis</td><td class="mono">PostgreSQL 16</td></tr>
+        <tr><td>Auth</td><td class="mono">bcrypt PIN + email OTP + JWT HS256 (8h)</td></tr>
+        <tr><td>Biztonság</td><td class="mono">SanitizeMiddleware (SQL inj / XSS / path traversal)</td></tr>
+        <tr><td>AI – fő</td><td class="mono">Claude API (claude-sonnet-4-6)</td></tr>
+        <tr><td>AI – LoRA</td><td class="mono">transformers + PEFT + TRL (Phi-3-mini / TinyLlama)</td></tr>
+        <tr><td>AI – helyi</td><td class="mono">Ollama (llama3:8b, mistral:7b, llava:7b)</td></tr>
+        <tr><td>Vektoros keresés</td><td class="mono">ChromaDB + sentence-transformers</td></tr>
+        <tr><td>Web scraping</td><td class="mono">Playwright (Chromium)</td></tr>
+        <tr><td>Frontend</td><td class="mono">Vanilla HTML/CSS/JS · 4 CSS téma · nincs Node/npm</td></tr>
+        <tr><td>Export</td><td class="mono">openpyxl (xlsx) · python-docx (docx) · reportlab (PDF)</td></tr>
+        <tr><td>OCR</td><td class="mono">pdfplumber → pytesseract + Pillow (fallback)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<!-- 4. ADATBÁZIS -->
+<section id="sec4">
+  <h2><span class="sec-num">04</span> Adatbázis séma</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Tábla</th><th>Csoport</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">products</td><td><span class="badge badge-info">Cikktörzs</span></td><td>Termékek (item_id UUID, crt_code, manufacturer, unit, status)</td></tr>
+        <tr><td class="mono">activities</td><td><span class="badge badge-info">Cikktörzs</span></td><td>Tevékenységek (activity_id UUID, unit_type)</td></tr>
+        <tr><td class="mono">categories</td><td><span class="badge badge-info">Cikktörzs</span></td><td>Kategória fa (parent_id, item_class, sort_order)</td></tr>
+        <tr><td class="mono">prices</td><td><span class="badge badge-warn">Árak</span></td><td>Ármozgások (price_type: lista/kisker/nagyker/egyedi, source_id, currency)</td></tr>
+        <tr><td class="mono">quotes</td><td><span class="badge badge-warn">Ajánlatok</span></td><td>Fejlécek (quote_number: CRT-YYYY-NNNN, source_mode, client_ref)</td></tr>
+        <tr><td class="mono">quote_lines</td><td><span class="badge badge-warn">Ajánlatok</span></td><td>Tételsorok (line_no, raw_name, cell_status, confidence, price_source)</td></tr>
+        <tr><td class="mono">web_sources</td><td><span class="badge" style="background:rgba(56,178,224,.12);color:#38b2e0">Scraping</span></td><td>Forrás URL-ek (base_url, source_type, status)</td></tr>
+        <tr><td class="mono">web_scripts</td><td><span class="badge" style="background:rgba(56,178,224,.12);color:#38b2e0">Scraping</span></td><td>Playwright scriptek (steps JSONB, version, active)</td></tr>
+        <tr><td class="mono">web_prices</td><td><span class="badge" style="background:rgba(56,178,224,.12);color:#38b2e0">Scraping</span></td><td>Scrapelt árak (source_id, item_id, price, currency)</td></tr>
+        <tr><td class="mono">golden_examples</td><td><span class="badge badge-done">AI</span></td><td>Jóváhagyott azonosítások (raw_text, clean_name, source)</td></tr>
+        <tr><td class="mono">chroma_index</td><td><span class="badge badge-done">AI</span></td><td>ChromaDB vektor indexek (collection, vector_id)</td></tr>
+        <tr><td class="mono">lora_jobs</td><td><span class="badge badge-done">AI</span></td><td>LoRA tréning futtatások (status, train_loss, adapter_path)</td></tr>
+        <tr><td class="mono">users</td><td><span class="badge" style="background:rgba(231,76,60,.12);color:#e74c3c">Rendszer</span></td><td>Felhasználók (pin_hash, email, role, locked_until)</td></tr>
+        <tr><td class="mono">system_config</td><td><span class="badge" style="background:rgba(231,76,60,.12);color:#e74c3c">Rendszer</span></td><td>Kulcs-érték konfiguráció</td></tr>
+        <tr><td class="mono">audit_log</td><td><span class="badge" style="background:rgba(231,76,60,.12);color:#e74c3c">Rendszer</span></td><td>Minden esemény naplója (action, entity_type, ip_address)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Migrációs sorrend</h3>
+  <pre>py -3.11 db_migrate_v02.py   # cikktörzs + árak + audit + config
+py -3.11 db_migrate_v04.py   # auth: users + auth_tokens
+py -3.11 db_migrate_v05.py   # web_sources, web_scripts, web_prices, quotes
+py -3.11 db_migrate_v06.py   # IF NOT EXISTS bővítések + indexek
+py -3.11 db_migrate_v07.py   # golden_examples + chroma_index + Ollama config
+py -3.11 db_migrate_v08.py   # lora_jobs + LoRA system_config kulcsok</pre>
+</section>
+
+
+<!-- 5. AI PIPELINE -->
+<section id="sec5">
+  <h2><span class="sec-num">05</span> AI pipeline</h2>
+  <h3>Azonosítási prioritási lánc</h3>
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-num" style="background:rgba(124,106,247,.2);color:var(--accent)">1</div>
+      <div class="pipe-body">
+        <h4 style="color:var(--accent)">Claude API</h4>
+        <p>Ha <code>claude_api_key</code> be van állítva a system_config-ban vagy ANTHROPIC_API_KEY env var-ban</p>
+        <span class="tag" style="background:rgba(124,106,247,.15);color:var(--accent)">cloud · legpontosabb · token alapú számlázás</span>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num" style="background:rgba(62,207,142,.2);color:var(--done)">2</div>
+      <div class="pipe-body">
+        <h4 style="color:var(--done)">LoRA fine-tuned modell</h4>
+        <p>Ha <code>lora_active_job_id</code> + <code>lora_adapter_path</code> be van állítva és az adapter könyvtár létezik</p>
+        <span class="tag" style="background:rgba(62,207,142,.12);color:var(--done)">helyi · CRT-specifikus · HuggingFace pipeline cache-lve</span>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num" style="background:rgba(245,166,35,.2);color:var(--warn)">3</div>
+      <div class="pipe-body">
+        <h4 style="color:var(--warn)">Ollama helyi LLM</h4>
+        <p>llama3:8b (alapértelmezett) · mistral:7b · http://localhost:11434 · internet nélkül működik</p>
+        <span class="tag" style="background:rgba(245,166,35,.12);color:var(--warn)">helyi · ingyenes · lassabb</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>LoRA finomhangolás folyamata</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Lépés</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td>1. Adatgyűjtés</td><td><code>acceptAll()</code> az ajánlatkészítőben → <code>golden_examples</code> tábla</td></tr>
+        <tr><td>2. Tréning indítás</td><td><code>ui/lora.html</code> → minimum 10 jóváhagyott példa szükséges</td></tr>
+        <tr><td>3. GPU mód</td><td>Phi-3-mini-4k-instruct + 4-bit QLoRA (~30 perc 50 példán)</td></tr>
+        <tr><td>4. CPU mód</td><td>TinyLlama-1.1B + fp32 (~2–4 óra 50 példán)</td></tr>
+        <tr><td>5. Adapter mentés</td><td><code>models/lora/{job_id}/adapter/</code></td></tr>
+        <tr><td>6. Aktiválás</td><td>lora.html → <code>ai_motor.py</code> betölti, memóriában cachelve tartja</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<!-- 6. API VÉGPONTOK -->
+<section id="sec6">
+  <h2><span class="sec-num">06</span> API végpontok</h2>
+  <h3>Rendszer & cikktörzs</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Endpoint</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">GET /</td><td>Ping – verzió, NTP idő, DB státusz</td></tr>
+        <tr><td class="mono">GET /health</td><td>Gyors health check</td></tr>
+        <tr><td class="mono">GET /status/widget</td><td>Zöld/piros – widget adatforrása</td></tr>
+        <tr><td class="mono">POST /cikktorzs/identify</td><td>AI azonosítás (Claude→LoRA→Ollama)</td></tr>
+        <tr><td class="mono">POST /cikktorzs/upload</td><td>Fájl feltöltés (xlsx/csv/pdf/docx/html)</td></tr>
+        <tr><td class="mono">POST /cikktorzs/save</td><td>Jóváhagyott tételek mentése</td></tr>
+        <tr><td class="mono">GET /audit/logs</td><td>Audit napló (szűrők, lapozás)</td></tr>
+        <tr><td class="mono">POST /admin/backup</td><td>DB JSON snapshot</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Ajánlatok, export, árak</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Endpoint</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">POST /quotes/</td><td>Új ajánlat létrehozása</td></tr>
+        <tr><td class="mono">GET /quotes/{id}/lines</td><td>Tételsorok lekérdezése</td></tr>
+        <tr><td class="mono">GET /quotes/{id}/summary</td><td>Összesítő (összeg, státusz stat)</td></tr>
+        <tr><td class="mono">GET /export/{id}/xlsx</td><td>Excel export</td></tr>
+        <tr><td class="mono">GET /export/{id}/docx</td><td>Word export</td></tr>
+        <tr><td class="mono">GET /export/{id}/pdf</td><td>PDF export (A4, dark theme)</td></tr>
+        <tr><td class="mono">GET /prices/best/{item_id}</td><td>Legjobb elérhető ár</td></tr>
+        <tr><td class="mono">POST /scripts/{id}/run</td><td>Playwright scraper futtatás</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>LoRA & AI</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Endpoint</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">GET /lora/stats</td><td>Golden count + aktív job info</td></tr>
+        <tr><td class="mono">POST /lora/train</td><td>Tréning indítása (háttér subprocess)</td></tr>
+        <tr><td class="mono">GET /lora/jobs/{job_id}</td><td>Job részlet + live status.json</td></tr>
+        <tr><td class="mono">POST /lora/jobs/{id}/activate</td><td>Modell aktiválása az AI pipeline-ban</td></tr>
+        <tr><td class="mono">POST /lora/deactivate</td><td>LoRA kikapcsolása</td></tr>
+        <tr><td class="mono">GET /chroma/search</td><td>Vektoros szemantikus keresés</td></tr>
+        <tr><td class="mono">POST /vision/analyze</td><td>Kép/PDF elemzés LLaVA-val</td></tr>
+        <tr><td class="mono">GET /golden/export</td><td>JSONL/JSON/CSV tanítóadat export</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<!-- 7. FRONTEND -->
+<section id="sec7">
+  <h2><span class="sec-num">07</span> Frontend oldalak</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Oldal</th><th>Fájl</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td>Bejelentkezés</td><td class="mono">login.html</td><td>PIN → OTP 2 lépés, 4 téma, brute force visszaszámláló</td></tr>
+        <tr><td>Főmenü</td><td class="mono">fomenu.html</td><td>10 funkciókártya, státusz chip-ek, live widget link</td></tr>
+        <tr><td>Admin konzol</td><td class="mono">admin.html</td><td>Felhasználókezelés, lock/unlock, PIN reset, konfig</td></tr>
+        <tr><td>Cikktörzs</td><td class="mono">cikktorzs.html</td><td>Fa struktúra, keresés, fájl feltöltés, AI azonosítás</td></tr>
+        <tr><td>Ajánlatkészítő</td><td class="mono">ajanlatkezelo.html</td><td>3 mód, cell-státusz jelzők, AI, xlsx/docx/PDF export</td></tr>
+        <tr><td>Webes árak</td><td class="mono">webes_arak.html</td><td>Árforrások, script rögzítés, Tanít gomb</td></tr>
+        <tr><td>Beállítások</td><td class="mono">beallitasok.html</td><td>SMTP, Claude/Ollama kulcsok, PIN csere, backup</td></tr>
+        <tr><td>Naplók</td><td class="mono">naplok.html</td><td>Audit log, szűrők, CSV export, auto-refresh</td></tr>
+        <tr><td>Árak</td><td class="mono">arak.html</td><td>Ár lista, kézi bevitel, stat sáv, kor jelzők</td></tr>
+        <tr><td>Widget</td><td class="mono">widget.html</td><td>Élő rendszerállapot (API/DB/Ollama/ChromaDB)</td></tr>
+        <tr><td>Rajzelemző</td><td class="mono">rajz_elemzo.html</td><td>LLaVA Vision, drag&amp;drop kép/PDF, eredmény kártyák</td></tr>
+        <tr><td>LoRA <span class="badge badge-done">v1.0</span></td><td class="mono">lora.html</td><td>Tréning indítás, live progress bar, aktiválás</td></tr>
+        <tr><td>Diagnosztika</td><td class="mono">kezelőpult_v2.html</td><td>Rendszer diagnosztika, palettaszerkesztő (11 picker)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<!-- 8. BIZTONSÁG -->
+<section id="sec8">
+  <h2><span class="sec-num">08</span> Biztonság</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Mechanizmus</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td>PIN</td><td>bcrypt hash, 6 számjegy</td></tr>
+        <tr><td>2FA (OTP)</td><td>Email OTP, 10 perc érvényes — SMTP nélkül naplóba kerül (dev mód)</td></tr>
+        <tr><td>JWT</td><td>HS256, 8 óra, <code>CRT_JWT_SECRET</code> env var — éles rendszeren kötelező megváltoztatni!</td></tr>
+        <tr><td>Brute force</td><td>4 kísérlet → 30 perces automatikus zárolás</td></tr>
+        <tr><td>SQL injection</td><td>SanitizeMiddleware — UNION, DROP, SELECT * stb. blokkolva</td></tr>
+        <tr><td>XSS</td><td><code>&lt;script&gt;</code>, <code>javascript:</code>, event handler blokkolva</td></tr>
+        <tr><td>Path traversal</td><td><code>../</code> és <code>..\</code> blokkolva</td></tr>
+        <tr><td>Méret limit</td><td>512 KB kérés méret korlát</td></tr>
+        <tr><td>Audit log</td><td>Minden esemény rögzítve: user, IP, entitás, leírás</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<!-- 9. TELEPÍTÉS -->
+<section id="sec9">
+  <h2><span class="sec-num">09</span> Telepítési útmutató</h2>
+  <h3>Gyors indítás (fejlesztési mód)</h3>
+  <pre>py -3.11 -m pip install -r requirements.txt
+
+py -3.11 db_migrate_v02.py
+py -3.11 db_migrate_v04.py
+py -3.11 db_migrate_v05.py
+py -3.11 db_migrate_v06.py
+py -3.11 db_migrate_v07.py
+py -3.11 db_migrate_v08.py
+
+py -3.11 _setup/create_admin.py
+py -3.11 -m uvicorn main:app --reload
+# Böngészőben: ui/login.html</pre>
+
+  <h3>Éles telepítés (WSL2 intelligens telepítő)</h3>
+  <pre>.\install.bat
+# Vagy:
+powershell -ExecutionPolicy Bypass -File "_setup\CRT_install.ps1"</pre>
+  <p>A telepítő automatikusan kezeli: WSL2 + Ubuntu, PostgreSQL 16, Python 3.11, Ollama + modellek, ChromaDB, Playwright, Nginx, LoRA csomagok, admin init.</p>
+
+  <h3>Napi indítás / leállítás</h3>
+  <pre>start.bat    # WSL2 CRT + összes szolgáltatás
+stop.bat     # graceful shutdown
+status.bat   # futó szolgáltatások listája</pre>
+</section>
+
+
+<!-- 10. KONFIGURÁCIÓ -->
+<section id="sec10">
+  <h2><span class="sec-num">10</span> Konfiguráció</h2>
+  <h3>system_config kulcsok (beallitasok.html / lora.html)</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Kulcs</th><th>Leírás</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">claude_api_key</td><td>Anthropic API kulcs — ha üres, Ollama / LoRA fallback</td></tr>
+        <tr><td class="mono">claude_model</td><td>Alapértelmezett Claude modell (pl. claude-sonnet-4-6)</td></tr>
+        <tr><td class="mono">smtp_host / port / user / pass</td><td>Email SMTP — OTP küldéshez kötelező éles rendszeren</td></tr>
+        <tr><td class="mono">company_name</td><td>Cég neve — xlsx/docx/PDF exportokba kerül</td></tr>
+        <tr><td class="mono">ollama_url / ollama_model</td><td>Ollama szerver + alapértelmezett modell</td></tr>
+        <tr><td class="mono">lora_active_job_id</td><td>Aktív LoRA job azonosítója — ha üres, LoRA kikapcsolva</td></tr>
+        <tr><td class="mono">lora_adapter_path</td><td>LoRA adapter könyvtár abszolút elérési útja</td></tr>
+        <tr><td class="mono">ai_conf_high / ai_conf_low</td><td>AI azonosítás bizonyossági küszöbök</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>.env fájl (NEM szinkronizálni!)</h3>
+  <pre>CRT_DB_URL=postgresql://crt_user:crt2026@localhost:5432/crt
+CRT_JWT_SECRET=valtoztasd-meg-eles-rendszeren
+ANTHROPIC_API_KEY=sk-ant-...
+CRT_OLLAMA_URL=http://localhost:11434
+CRT_LORA_DIR=models/lora</pre>
+</section>
+
+
+<!-- 11. MAPPA STRUKTÚRA -->
+<section id="sec11">
+  <h2><span class="sec-num">11</span> Mappa struktúra</h2>
+  <pre>H:\Saját meghajtó\CRT\
+│
+├── ui\                    HTML felületek (13 oldal)
+├── _setup\
+│   ├── CRT_install.ps1    Intelligens Windows telepítő
+│   ├── build_wsl.sh       Ubuntu belső telepítő
+│   ├── wsl_start.sh       WSL2 runtime indító
+│   └── create_admin.py    Admin felhasználó init
+├── models\
+│   ├── ollama\            LLM modellek (~14 GB, NEM szinkronizálni)
+│   └── lora\              LoRA adapterek ({job_id}/adapter/)
+├── vectors\chroma\        ChromaDB adatok
+├── uploads\               Feltöltött fájlok
+├── exports\               Generált dokumentumok
+├── db_data\               PostgreSQL (NEM szinkronizálni!)
+│   └── backups\           JSON backup snapshot-ok
+│
+├── main.py                FastAPI belépőpont v1.0
+├── auth.py                Auth + Config router
+├── sanitize.py            Biztonsági middleware
+├── ai_motor.py            AI pipeline (Claude→LoRA→Ollama)
+├── lora_router.py         LoRA kezelő API          ← v1.0
+├── lora_train.py          LoRA tréning szkript      ← v1.0
+├── chroma_motor.py        ChromaDB motor
+├── vision_motor.py        LLaVA Vision motor
+├── golden_router.py       Tanítóadat router
+├── quotes_router.py       Ajánlat router
+├── export_router.py       Export router
+├── prices_router.py       Ár router
+├── web_sources.py         Web scraper router
+├── cikktorzs_parse.py     Fájl parser + OCR
+├── db_migrate_v02..v08.py Migrációk
+├── requirements.txt       Python függőségek
+├── start.bat / stop.bat / status.bat / install.bat
+├── CLAUDE.md              Claude kontextus (új gépre)
+├── CRT_Status.md          Formális státusz
+├── CRT_Whitebook_v1.0.md  Markdown whitebook
+└── CRT_Whitebook_v1.0.html ← EZT OLVASOD</pre>
+</section>
+
+
+<!-- 12. HISTÓRIA -->
+<section id="sec12">
+  <h2><span class="sec-num">12</span> Fejlesztési história</h2>
+  <div class="timeline">
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.1</span><span class="tl-date">2026-05-18</span><div class="tl-text">DB séma – 15 tábla alap</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.2</span><span class="tl-date">2026-05-18</span><div class="tl-text">FastAPI gerinc + állapotjelző + alapszolgáltatások</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.3</span><span class="tl-date">2026-05-28</span><div class="tl-text">Cikktörzs API + UI + fájl parser + AI azonosítás + GitHub repo</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.4</span><span class="tl-date">2026-06-08</span><div class="tl-text">Auth teljes: PIN + OTP + JWT + brute force + sanitize middleware</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.5</span><span class="tl-date">2026-06-08</span><div class="tl-text">Ajánlatkészítés + export (xlsx/docx/PDF) + árak + naplók + beállítások</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.6</span><span class="tl-date">2026-06-09</span><div class="tl-text">Playwright scraper + Nginx konfig + admin init script</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.7</span><span class="tl-date">2026-06-10</span><div class="tl-text">Ollama LLM fallback + ChromaDB embedding motor</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.8</span><span class="tl-date">2026-06-10</span><div class="tl-text">OCR + PDF export + Golden examples + státusz widget + Bootstrap ZIP csomagoló</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver">v0.9</span><span class="tl-date">2026-06-10</span><div class="tl-text">LLaVA Vision rajzelemző UI</div></div>
+    <div class="tl-item done"><div class="tl-dot"></div><span class="tl-ver" style="color:var(--done);font-size:.9rem;font-weight:900">v1.0</span><span class="tl-date">2026-06-10</span><div class="tl-text" style="color:var(--text)"><strong>LoRA finomhangolás pipeline – teljes AI lánc (Claude → LoRA → Ollama)</strong></div></div>
+  </div>
+</section>
+
+
+<!-- 13. KORLÁTOK -->
+<section id="sec13">
+  <h2><span class="sec-num">13</span> Ismert korlátok &amp; tervezett fejlesztések</h2>
+  <h3>Ismert korlátok</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Probléma</th><th>Megjegyzés</th></tr></thead>
+      <tbody>
+        <tr><td>LoRA tréning CPU-n lassú</td><td>TinyLlama: ~2–4 óra 50 példán; GPU-val ~30 perc</td></tr>
+        <tr><td>LLaVA Vision Ollama-függő</td><td>llava:7b letöltve kell legyen — ~4.1 GB</td></tr>
+        <tr><td>Befagyott pending job</td><td>Ha szerver újraindul tréning közben — UI delete gombbal kezelhető</td></tr>
+        <tr><td>SMTP kötelező OTP-hez</td><td>Nélküle OTP csak naplóba kerül (dev mód) — éles rendszeren beállítandó</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Tervezett fejlesztések (v1.1+)</h3>
+  <ul style="color:var(--dim);padding-left:1.5rem;line-height:2">
+    <li><code>CRT_install.ps1</code> éles tesztelése és véglegesítése</li>
+    <li>Éles tesztelés: valós ajánlat munkafolyamat + bugfix kör</li>
+    <li>Több felhasználós szerepkör (árajánlat-jóváhagyó)</li>
+    <li>Mobilbarát UI (responsive layout)</li>
+  </ul>
+</section>
+
+<div style="text-align:center;padding:2rem 0 1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.78rem;margin-top:2rem">
+  CRT Ajánlatsegéd Whitebook v1.0 &nbsp;·&nbsp; Civil Rendszertechnika Kft. &nbsp;·&nbsp; 2026-06-10
+</div>
+
+</main>
+
+<script>
+// Aktív nav link scrollozáskor
+const sections = document.querySelectorAll('section[id], div#cover');
+const navLinks  = document.querySelectorAll('nav a');
+const observer  = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(a => a.classList.remove('active'));
+      const id = e.target.id === 'cover' ? '#cover' : '#' + e.target.id;
+      const active = document.querySelector(`nav a[href="${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { threshold: 0.25 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Rajz / Képelemző</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:.7rem;}
+.topbar h1{font-size:.95rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+
+/* GOMB STÍLUSOK */
+.btn{padding:.38rem .85rem;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);font-size:.8rem;cursor:pointer;transition:all .15s;font-family:inherit;}
+.btn:hover{border-color:var(--border-hi);color:var(--text);}
+.btn-primary{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.btn-primary:hover{background:var(--accent);color:#fff;}
+.btn-sm{padding:.25rem .6rem;font-size:.75rem;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* BADGE */
+.badge{font-size:.65rem;padding:.1rem .4rem;border-radius:99px;font-weight:700;}
+.badge-ok{background:rgba(62,207,142,.15);color:var(--done);border:1px solid var(--done);}
+.badge-warn{background:rgba(245,166,35,.12);color:var(--warn);border:1px solid var(--warn);}
+.badge-err{background:rgba(231,76,60,.12);color:var(--err);border:1px solid var(--err);}
+.badge-off{background:rgba(90,90,122,.1);color:var(--text-muted);border:1px solid var(--border);}
+
+/* FŐ LAY */
+.main-wrap{flex:1;display:grid;grid-template-columns:360px 1fr;gap:0;overflow:hidden;height:calc(100vh - 48px);}
+
+/* BAL PANEL */
+.left-panel{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.panel-head{padding:.7rem 1rem;border-bottom:1px solid var(--border);background:var(--bg-card);display:flex;align-items:center;justify-content:space-between;}
+.panel-head h2{font-size:.82rem;font-weight:700;color:var(--text-dim);}
+
+/* DROP ZÓNA */
+.drop-zone{margin:1rem;border:2px dashed var(--border-hi);border-radius:12px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(124,106,247,.06);}
+.drop-icon{font-size:2.2rem;margin-bottom:.6rem;}
+.drop-title{font-size:.88rem;font-weight:600;margin-bottom:.3rem;}
+.drop-desc{font-size:.75rem;color:var(--text-muted);}
+#fileInput{display:none;}
+
+/* FELTÖLTÖTT KÉPEK LISTÁJA */
+.upload-list{flex:1;overflow-y:auto;padding:.5rem .8rem;}
+.upload-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:8px;border:1px solid var(--border);margin-bottom:.5rem;cursor:pointer;transition:border-color .2s;background:var(--bg-card);}
+.upload-item:hover{border-color:var(--border-hi);}
+.upload-item.active{border-color:var(--accent);background:rgba(124,106,247,.08);}
+.thumb{width:44px;height:44px;border-radius:6px;object-fit:cover;background:var(--bg-deep);}
+.thumb-pdf{width:44px;height:44px;border-radius:6px;background:var(--bg-deep);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--text-muted);border:1px solid var(--border);}
+.upload-info{flex:1;min-width:0;}
+.upload-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.upload-meta{font-size:.68rem;color:var(--text-muted);margin-top:.15rem;}
+.upload-status{font-size:1rem;}
+
+/* PDF OLDAL VÁLASZTÓ */
+.page-selector{padding:.6rem 1rem;border-top:1px solid var(--border);background:var(--bg-card);}
+.page-selector label{font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:.3rem;}
+.page-row{display:flex;gap:.4rem;align-items:center;}
+.page-row input{flex:1;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.32rem .5rem;color:var(--text);font-size:.8rem;outline:none;}
+.page-row input:focus{border-color:var(--accent);}
+
+/* STATUS SÁV */
+.status-bar{padding:.5rem 1rem;border-top:1px solid var(--border);background:var(--bg-card);display:flex;align-items:center;gap:.6rem;font-size:.72rem;color:var(--text-muted);}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);}
+.status-dot.ok{background:var(--done);}
+.status-dot.err{background:var(--err);}
+
+/* JOB OLDAL */
+.right-panel{display:flex;flex-direction:column;overflow:hidden;}
+.right-panel .panel-head{padding:.7rem 1.2rem;}
+
+/* KÉP ELŐNÉZET */
+.preview-wrap{flex:1;display:flex;gap:0;overflow:hidden;}
+.img-view{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg-deep);overflow:auto;padding:1rem;}
+.img-view img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;}
+.img-placeholder{color:var(--text-muted);font-size:.85rem;text-align:center;}
+.img-placeholder .big{font-size:3rem;margin-bottom:.6rem;}
+
+/* EREDMÉNYEK PANEL */
+.results-panel{width:400px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.results-toolbar{padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--bg-card);display:flex;align-items:center;gap:.5rem;}
+.results-toolbar h3{font-size:.8rem;font-weight:700;flex:1;}
+.results-list{flex:1;overflow-y:auto;padding:.6rem;}
+
+/* TERMÉK KÁRTYA */
+.prod-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.75rem .9rem;margin-bottom:.6rem;transition:border-color .2s;}
+.prod-card:hover{border-color:var(--border-hi);}
+.prod-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.5rem;}
+.prod-name{font-size:.83rem;font-weight:600;line-height:1.3;}
+.prod-conf{font-size:.68rem;font-weight:700;padding:.12rem .35rem;border-radius:99px;}
+.conf-high{background:rgba(62,207,142,.15);color:var(--done);border:1px solid var(--done);}
+.conf-mid{background:rgba(245,166,35,.12);color:var(--warn);border:1px solid var(--warn);}
+.conf-low{background:rgba(231,76,60,.12);color:var(--err);border:1px solid var(--err);}
+.prod-meta{display:grid;grid-template-columns:1fr 1fr;gap:.25rem .6rem;font-size:.72rem;color:var(--text-dim);}
+.prod-meta span{color:var(--text-muted);}
+.prod-loc{font-size:.7rem;color:var(--text-muted);margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);}
+.prod-actions{display:flex;gap:.4rem;margin-top:.6rem;}
+
+/* ANALYSE GOMB AREA */
+.analyse-bar{padding:.7rem 1rem;border-top:1px solid var(--border);background:var(--bg-card);}
+
+/* TÖLTŐ ANIMÁCIÓ */
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;}
+
+/* ÜRES ÁLLAPOT */
+.empty-state{padding:2rem;text-align:center;color:var(--text-muted);}
+.empty-state .big{font-size:2.5rem;margin-bottom:.6rem;}
+
+/* TOAST */
+#toast{position:fixed;bottom:1.2rem;right:1.2rem;background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:.6rem 1rem;font-size:.78rem;z-index:9999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;max-width:320px;}
+#toast.show{opacity:1;transform:none;}
+#toast.t-ok{border-color:var(--done);color:var(--done);}
+#toast.t-err{border-color:var(--err);color:var(--err);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="btn btn-sm" onclick="history.back()">← Vissza</button>
+    <h1>Rajz / Képelemző</h1>
+    <span class="badge badge-off" id="modelBadge">LLaVA: ellenőrzés...</span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-sm" id="btnRefreshStatus" onclick="checkStatus()">⟳ Státusz</button>
+  </div>
+</div>
+
+<div class="main-wrap">
+
+  <!-- BAL PANEL: feltöltés + lista -->
+  <div class="left-panel">
+    <div class="panel-head">
+      <h2>Fájlok</h2>
+      <button class="btn btn-sm btn-primary" onclick="document.getElementById('fileInput').click()">+ Hozzáad</button>
+    </div>
+    <input type="file" id="fileInput" multiple accept="image/*,.pdf">
+
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-icon">🗂</div>
+      <div class="drop-title">Húzd ide a fájlt</div>
+      <div class="drop-desc">PNG · JPG · WebP · PDF<br>Max. 20 MB / fájl</div>
+    </div>
+
+    <div class="upload-list" id="uploadList">
+      <div class="empty-state" id="listEmpty">
+        <div class="big">📂</div>
+        Még nincs feltöltött fájl
+      </div>
+    </div>
+
+    <div class="page-selector" id="pageSelector" style="display:none;">
+      <label>PDF oldal száma (0-tól indexelt)</label>
+      <div class="page-row">
+        <input type="number" id="pageNum" value="0" min="0" max="99">
+        <span style="font-size:.72rem;color:var(--text-muted)">/ oldal</span>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot" id="svcDot"></div>
+      <span id="svcLabel">Nincs kapcsolat</span>
+    </div>
+  </div>
+
+  <!-- JOB OLDAL -->
+  <div class="right-panel">
+    <div class="panel-head">
+      <h2>Előnézet</h2>
+      <div style="display:flex;gap:.4rem;margin-left:auto;">
+        <button class="btn btn-sm" id="btnExportAll" onclick="exportResults()" disabled>↓ CSV export</button>
+        <button class="btn btn-sm" id="btnAddAll" onclick="addAllToQuote()" disabled>＋ Ajánlatba mind</button>
+      </div>
+    </div>
+
+    <div class="preview-wrap">
+      <!-- KÉP -->
+      <div class="img-view" id="imgView">
+        <div class="img-placeholder">
+          <div class="big">🖼</div>
+          Válassz fájlt a bal panelből
+        </div>
+      </div>
+
+      <!-- EREDMÉNYEK -->
+      <div class="results-panel">
+        <div class="results-toolbar">
+          <h3>Azonosított tételek</h3>
+          <span class="badge badge-off" id="resultCount">—</span>
+        </div>
+        <div class="results-list" id="resultsList">
+          <div class="empty-state">
+            <div class="big">🔍</div>
+            Futtasd az elemzést
+          </div>
+        </div>
+        <div class="analyse-bar">
+          <button class="btn btn-primary" id="btnAnalyse" style="width:100%;" onclick="runAnalysis()">
+            Elemzés indítása (LLaVA)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('crt-token') || '';
+const theme = localStorage.getItem('crt-theme') || 'ejszaka';
+document.documentElement.setAttribute('data-theme', theme);
+
+let files = [];
+let activeIdx = -1;
+let results = {};
+
+// ── AUTH CHECK ─────────────────────────────────────────────────────────────
+if (!token) { location.href = 'login.html'; }
+
+function authH() { return { 'Authorization': 'Bearer ' + token }; }
+
+// ── STÁTUSZ ────────────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch(API + '/vision/status', { headers: authH() });
+    if (r.status === 401) { location.href = 'login.html'; return; }
+    const d = await r.json();
+    const dot  = document.getElementById('svcDot');
+    const lbl  = document.getElementById('svcLabel');
+    const badge = document.getElementById('modelBadge');
+    if (d.available) {
+      dot.className = 'status-dot ok';
+      lbl.textContent = 'LLaVA elérhető · ' + (d.model || 'llava:7b');
+      badge.textContent = 'LLaVA: ✓ ' + (d.model || 'llava:7b');
+      badge.className = 'badge badge-ok';
+    } else {
+      dot.className = 'status-dot err';
+      lbl.textContent = 'LLaVA nem elérhető';
+      badge.textContent = 'LLaVA: nincs';
+      badge.className = 'badge badge-err';
+    }
+  } catch {
+    document.getElementById('svcDot').className = 'status-dot err';
+    document.getElementById('svcLabel').textContent = 'API nem elérhető';
+  }
+}
+
+// ── DRAG & DROP ────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+function handleFiles(fileList) {
+  for (const f of fileList) {
+    const isPdf = f.type === 'application/pdf';
+    const isImg = f.type.startsWith('image/');
+    if (!isPdf && !isImg) { toast('Nem támogatott: ' + f.name, 'err'); continue; }
+    if (f.size > 20 * 1024 * 1024) { toast('Túl nagy (max 20MB): ' + f.name, 'err'); continue; }
+    const idx = files.length;
+    files.push({ file: f, type: isPdf ? 'pdf' : 'img', result: null, status: 'new' });
+    renderListItem(idx);
+  }
+  document.getElementById('listEmpty').style.display = files.length ? 'none' : '';
+  fileInput.value = '';
+}
+
+function renderListItem(idx) {
+  const item = files[idx];
+  const f    = item.file;
+  const list = document.getElementById('uploadList');
+
+  // Thumbnail
+  let thumbEl;
+  if (item.type === 'img') {
+    thumbEl = document.createElement('img');
+    thumbEl.className = 'thumb';
+    const url = URL.createObjectURL(f);
+    thumbEl.src = url;
+  } else {
+    thumbEl = document.createElement('div');
+    thumbEl.className = 'thumb-pdf';
+    thumbEl.textContent = '📄';
+  }
+
+  const div = document.createElement('div');
+  div.className = 'upload-item';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <span class="upload-status" id="st-${idx}">⬜</span>
+    <div class="upload-info">
+      <div class="upload-name">${escHtml(f.name)}</div>
+      <div class="upload-meta">${(f.size/1024).toFixed(1)} KB · ${item.type.toUpperCase()}</div>
+    </div>`;
+  div.insertBefore(thumbEl, div.querySelector('.upload-info'));
+  div.addEventListener('click', () => selectFile(idx));
+  list.appendChild(div);
+}
+
+function selectFile(idx) {
+  document.querySelectorAll('.upload-item').forEach(el => el.classList.remove('active'));
+  const el = document.querySelector(`.upload-item[data-idx="${idx}"]`);
+  if (el) el.classList.add('active');
+  activeIdx = idx;
+  showPreview(idx);
+  showResults(idx);
+  const item = files[idx];
+  document.getElementById('pageSelector').style.display = item.type === 'pdf' ? '' : 'none';
+}
+
+function showPreview(idx) {
+  const item = files[idx];
+  const view = document.getElementById('imgView');
+  if (item.type === 'img') {
+    const url = URL.createObjectURL(item.file);
+    view.innerHTML = `<img src="${url}" alt="előnézet">`;
+  } else {
+    view.innerHTML = `<div class="img-placeholder"><div class="big">📄</div>PDF fájl – elemzés futtatásával megjelenik az oldal tartalma</div>`;
+  }
+}
+
+function showResults(idx) {
+  const item = files[idx];
+  const list = document.getElementById('resultsList');
+  const cnt  = document.getElementById('resultCount');
+  if (!item.result || !item.result.results || !item.result.results.length) {
+    list.innerHTML = '<div class="empty-state"><div class="big">🔍</div>Futtasd az elemzést</div>';
+    cnt.textContent = '—';
+    cnt.className = 'badge badge-off';
+    document.getElementById('btnAddAll').disabled = true;
+    document.getElementById('btnExportAll').disabled = true;
+    return;
+  }
+  const items = item.result.results;
+  cnt.textContent = items.length + ' tétel';
+  cnt.className = 'badge badge-ok';
+  list.innerHTML = items.map((p, i) => renderProdCard(p, i)).join('');
+  document.getElementById('btnAddAll').disabled = false;
+  document.getElementById('btnExportAll').disabled = false;
+}
+
+function renderProdCard(p, i) {
+  const conf = parseFloat(p.confidence) || 0;
+  const cls  = conf >= 0.75 ? 'conf-high' : conf >= 0.5 ? 'conf-mid' : 'conf-low';
+  const pct  = Math.round(conf * 100);
+  return `<div class="prod-card" id="pc-${i}">
+    <div class="prod-top">
+      <div class="prod-name">${escHtml(p.name || '—')}</div>
+      <span class="prod-conf ${cls}">${pct}%</span>
+    </div>
+    <div class="prod-meta">
+      <div><span>Gyártó</span><br>${escHtml(p.manufacturer || '—')}</div>
+      <div><span>Kategória</span><br>${escHtml(p.category || '—')}</div>
+      <div><span>Mennyiség</span><br>${escHtml(p.unit || 'db')}</div>
+    </div>
+    ${p.location ? `<div class="prod-loc">📍 ${escHtml(p.location)}</div>` : ''}
+    <div class="prod-actions">
+      <button class="btn btn-sm btn-primary" onclick="addOneToCikktorzs(${i})">+ Cikktörzsbe</button>
+      <button class="btn btn-sm" onclick="copyLine(${i})">📋 Másolás</button>
+    </div>
+  </div>`;
+}
+
+// ── ELEMZÉS ────────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  if (activeIdx < 0) { toast('Válassz fájlt!', 'err'); return; }
+  const item = files[activeIdx];
+  const btn  = document.getElementById('btnAnalyse');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Elemzés folyamatban...';
+  setStatus(activeIdx, '⏳');
+
+  try {
+    const form = new FormData();
+    let url;
+    if (item.type === 'img') {
+      form.append('file', item.file);
+      url = API + '/vision/analyze';
+    } else {
+      form.append('file', item.file);
+      const pg = parseInt(document.getElementById('pageNum').value) || 0;
+      url = API + '/vision/analyze?page=' + pg;
+    }
+
+    const r = await fetch(url, { method: 'POST', headers: authH(), body: form });
+    if (r.status === 401) { location.href = 'login.html'; return; }
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: r.statusText }));
+      throw new Error(err.detail || r.statusText);
+    }
+    const data = await r.json();
+    item.result = data;
+    item.status = 'done';
+    setStatus(activeIdx, '✅');
+    showResults(activeIdx);
+    toast('Azonosítva: ' + (data.results?.length || 0) + ' tétel · ' + (data.model || 'llava'), 'ok');
+  } catch (e) {
+    item.status = 'err';
+    setStatus(activeIdx, '❌');
+    toast('Hiba: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Elemzés indítása (LLaVA)';
+  }
+}
+
+function setStatus(idx, icon) {
+  const el = document.getElementById('st-' + idx);
+  if (el) el.textContent = icon;
+}
+
+// ── AKCIÓK ────────────────────────────────────────────────────────────────
+function addOneToCikktorzs(i) {
+  if (activeIdx < 0) return;
+  const item = files[activeIdx];
+  const p    = item.result?.results?.[i];
+  if (!p) return;
+  const params = new URLSearchParams({ raw_name: p.name, manufacturer: p.manufacturer || '', category: p.category || '', unit: p.unit || 'db' });
+  window.open('cikktorzs.html?' + params.toString(), '_blank');
+  toast('Megnyitva a cikktörzsben', 'ok');
+}
+
+function copyLine(i) {
+  if (activeIdx < 0) return;
+  const p = files[activeIdx].result?.results?.[i];
+  if (!p) return;
+  const txt = [p.name, p.manufacturer, p.category, p.unit, p.confidence].filter(Boolean).join('\t');
+  navigator.clipboard.writeText(txt).then(() => toast('Vágólapra másolva', 'ok'));
+}
+
+async function addAllToQuote() {
+  if (activeIdx < 0) return;
+  const items = files[activeIdx].result?.results;
+  if (!items?.length) return;
+  const high = items.filter(p => (p.confidence || 0) >= 0.5);
+  const params = new URLSearchParams({ vision_items: JSON.stringify(high) });
+  window.open('ajanlatkezelo.html?' + params.toString(), '_blank');
+  toast(high.length + ' tétel átküldve az ajánlatkészítőbe', 'ok');
+}
+
+function exportResults() {
+  if (activeIdx < 0) return;
+  const items = files[activeIdx].result?.results;
+  if (!items?.length) return;
+  const bom = '﻿';
+  const header = 'Megnevezés\tGyártó\tKategória\tEgység\tBizonyosság\tHelyzet\n';
+  const rows = items.map(p =>
+    [p.name, p.manufacturer, p.category, p.unit, Math.round((p.confidence||0)*100)+'%', p.location].join('\t')
+  ).join('\n');
+  const blob = new Blob([bom + header + rows], { type: 'text/tab-separated-values' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vision_export_' + new Date().toISOString().slice(0,10) + '.tsv';
+  a.click();
+  toast('CSV exportálva', 'ok');
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show t-' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+checkStatus();
+</script>
+</body>
+</html>

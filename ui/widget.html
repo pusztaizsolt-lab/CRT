@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<title>CRT Státusz</title>
+<style>
+[data-theme="ejszaka"]{--bg:#0d0d14;--card:#16161f;--border:#2a2a3e;--accent:#7c6af7;--text:#e8e8f0;--dim:#9898b8;--muted:#5a5a7a;--ok:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg:#061624;--card:#0c2236;--border:#1a3a55;--accent:#38b2e0;--text:#dff0fb;--dim:#7ab8d8;--muted:#3a6a88;--ok:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg:#060f08;--card:#0d1f10;--border:#1a3520;--accent:#4caf72;--text:#d8f0dc;--dim:#78b890;--muted:#3a6848;--ok:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg:#10141a;--card:#1a2130;--border:#2a3548;--accent:#6a8fc8;--text:#d8e4f4;--dim:#8898b8;--muted:#485870;--ok:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+
+.widget{width:300px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem 1.2rem;user-select:none;}
+
+.w-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;}
+.w-title{font-size:.8rem;font-weight:700;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;}
+.w-ver{font-size:.68rem;color:var(--muted);}
+
+.w-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:background .3s;}
+.dot-ok   {background:var(--ok); box-shadow:0 0 6px var(--ok);}
+.dot-warn {background:var(--warn);box-shadow:0 0 6px var(--warn);}
+.dot-err  {background:var(--err); box-shadow:0 0 4px var(--err);}
+.dot-off  {background:var(--muted);}
+
+.w-status{display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-bottom:1px solid var(--border);}
+.w-status:last-child{border-bottom:none;}
+.w-label{flex:1;font-size:.78rem;color:var(--dim);}
+.w-val{font-size:.75rem;color:var(--muted);}
+.w-val.ok{color:var(--ok);}
+.w-val.warn{color:var(--warn);}
+.w-val.err{color:var(--err);}
+
+.w-divider{height:1px;background:var(--border);margin:.6rem 0;}
+
+.w-footer{display:flex;align-items:center;justify-content:space-between;margin-top:.7rem;}
+.w-time{font-size:.68rem;color:var(--muted);}
+.w-btns{display:flex;gap:.4rem;}
+.w-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--dim);font-size:.68rem;padding:.2rem .5rem;cursor:pointer;transition:all .15s;}
+.w-btn:hover{border-color:var(--accent);color:var(--text);}
+
+.w-spinner{width:8px;height:8px;border:1.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div class="widget">
+  <div class="w-header">
+    <span class="w-title">CRT Ajánlatsegéd</span>
+    <span class="w-ver" id="wVer">v–</span>
+  </div>
+
+  <div class="w-status">
+    <div class="w-dot dot-off" id="dotApi"></div>
+    <span class="w-label">Backend API</span>
+    <span class="w-val" id="valApi">–</span>
+  </div>
+  <div class="w-status">
+    <div class="w-dot dot-off" id="dotDb"></div>
+    <span class="w-label">PostgreSQL</span>
+    <span class="w-val" id="valDb">–</span>
+  </div>
+  <div class="w-status">
+    <div class="w-dot dot-off" id="dotOllama"></div>
+    <span class="w-label">Ollama LLM</span>
+    <span class="w-val" id="valOllama">–</span>
+  </div>
+  <div class="w-status">
+    <div class="w-dot dot-off" id="dotChroma"></div>
+    <span class="w-label">ChromaDB</span>
+    <span class="w-val" id="valChroma">–</span>
+  </div>
+
+  <div class="w-divider"></div>
+
+  <div class="w-footer">
+    <span class="w-time" id="wTime">–</span>
+    <div class="w-btns">
+      <button class="w-btn" onclick="openUI()">Megnyit</button>
+      <button class="w-btn" onclick="refresh()">↺</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+
+function setDot(id, state){ // ok | warn | err | off | spin
+  const el = document.getElementById(id);
+  el.className = 'w-dot';
+  if(state === 'spin'){
+    el.outerHTML = `<div class="w-spinner" id="${id}"></div>`;
+    return;
+  }
+  el.classList.add(`dot-${state}`);
+}
+
+function setVal(id, text, cls=''){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `w-val ${cls}`;
+}
+
+async function refresh(){
+  ['dotApi','dotDb','dotOllama','dotChroma'].forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'w-dot dot-off';
+  });
+
+  const token = localStorage.getItem('crt-token');
+  const h = token ? {'Authorization': `Bearer ${token}`} : {};
+
+  // Backend + DB
+  try{
+    const r = await fetch(`${API}/health`, {signal: AbortSignal.timeout(4000)});
+    const d = await r.json();
+    const dbOk = d.db === 'ok';
+    setDot('dotApi', 'ok');
+    setVal('dotApi', ''); // placeholder
+    setVal('valApi', d.version ? `v${d.version}` : 'OK', 'ok');
+    document.getElementById('wVer').textContent = d.version ? `v${d.version}` : '';
+    setDot('dotDb', dbOk ? 'ok' : 'err');
+    setVal('valDb', dbOk ? 'OK' : 'Hiba', dbOk ? 'ok' : 'err');
+    document.getElementById('wTime').textContent = d.ntp || '–';
+  } catch(e){
+    setDot('dotApi','err'); setVal('valApi','Nem elérhető','err');
+    setDot('dotDb','off');  setVal('valDb','–');
+  }
+
+  // Ollama
+  try{
+    const r = await fetch(`${API}/ollama/status`,
+      {headers: h, signal: AbortSignal.timeout(5000)});
+    if(r.ok){
+      const d = await r.json();
+      if(d.ok){
+        const mc = d.models?.length || 0;
+        setDot('dotOllama','ok');
+        setVal('valOllama', mc ? `${mc} modell` : 'fut (0 modell)', mc ? 'ok' : 'warn');
+      } else {
+        setDot('dotOllama','warn'); setVal('valOllama','Nem fut','warn');
+      }
+    } else {
+      setDot('dotOllama','off'); setVal('valOllama','–');
+    }
+  } catch{
+    setDot('dotOllama','warn'); setVal('valOllama','Nem fut','warn');
+  }
+
+  // ChromaDB
+  try{
+    const r = await fetch(`${API}/chroma/stats`,
+      {headers: h, signal: AbortSignal.timeout(4000)});
+    if(r.ok){
+      const d = await r.json();
+      if(d.status === 'ok'){
+        setDot('dotChroma','ok');
+        setVal('valChroma',`raw:${d.raw_count} clean:${d.clean_count}`,'ok');
+      } else {
+        setDot('dotChroma','warn'); setVal('valChroma','Nem fut','warn');
+      }
+    } else {
+      setDot('dotChroma','off'); setVal('valChroma','–');
+    }
+  } catch{
+    setDot('dotChroma','warn'); setVal('valChroma','Nem fut','warn');
+  }
+}
+
+function openUI(){
+  window.open('http://localhost/login.html','_blank');
+}
+
+// Téma szinkron a főoldalról
+const theme = localStorage.getItem('crt-theme') || 'ejszaka';
+document.documentElement.setAttribute('data-theme', theme);
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

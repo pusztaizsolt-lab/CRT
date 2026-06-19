@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – Webes árak</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.5rem;border-bottom:1px solid var(--border);background:var(--bg-card);position:sticky;top:0;z-index:50;}
+.topbar-left{display:flex;align-items:center;gap:.8rem;}
+.topbar h1{font-size:1rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:.8rem;}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 53px);}
+.sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.sidebar-head{padding:1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.sidebar-head h2{font-size:.85rem;font-weight:700;color:var(--text-dim);}
+.sources-list{flex:1;overflow-y:auto;}
+.source-item{padding:.7rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.source-item:hover{background:rgba(255,255,255,.03);}
+.source-item.active{background:var(--accent-dim);border-left:3px solid var(--accent);}
+.source-name{font-size:.88rem;font-weight:600;}
+.source-url{font-size:.72rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;}
+.source-meta{display:flex;align-items:center;gap:.5rem;margin-top:.3rem;}
+
+/* ── STÁTUSZ BADGE ── */
+.s-badge{font-size:.65rem;padding:.1rem .4rem;border-radius:99px;font-weight:700;}
+.s-new     {background:rgba(90,90,122,.2);color:var(--text-muted);border:1px solid var(--border);}
+.s-reachable{background:rgba(62,207,142,.12);color:var(--done);border:1px solid var(--done);}
+.s-learned {background:rgba(124,106,247,.2);color:var(--accent);border:1px solid var(--accent);}
+.s-error   {background:rgba(231,76,60,.12);color:var(--err);border:1px solid var(--err);}
+.s-disabled{background:rgba(90,90,122,.15);color:var(--text-muted);border:1px solid var(--border);text-decoration:line-through;}
+
+/* ── JOB DOT ── */
+.job-dot{width:7px;height:7px;border-radius:50%;}
+.job-dot.green{background:var(--done);}
+.job-dot.red{background:var(--err);}
+.job-dot.yellow{background:var(--warn);animation:pulse .8s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── TARTALOM ── */
+.content{overflow-y:auto;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:1rem;padding:3rem;}
+.empty-state .icon{font-size:3rem;opacity:.4;}
+
+/* ── RÉSZLET PANEL ── */
+.detail{padding:1.5rem;}
+.detail-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap;}
+.detail-title h2{font-size:1.1rem;font-weight:700;margin-bottom:.2rem;}
+.detail-title .url-chip{font-size:.75rem;color:var(--text-muted);word-break:break-all;}
+.detail-actions{display:flex;gap:.5rem;flex-wrap:wrap;}
+
+/* ── KÁRTYÁK ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1rem;}
+.card-title{font-size:.85rem;font-weight:700;color:var(--text-dim);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
+
+/* ── SCRIPT KÁRTYÁK ── */
+.script-card{background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;padding:.9rem;margin-bottom:.6rem;}
+.script-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;}
+.script-type{font-size:.78rem;font-weight:700;color:var(--accent);}
+.script-ver{font-size:.7rem;color:var(--text-muted);}
+.script-meta{font-size:.72rem;color:var(--text-muted);}
+.steps-list{margin-top:.6rem;font-size:.75rem;color:var(--text-dim);font-family:'Consolas','Courier New',monospace;}
+.step-row{padding:.2rem .4rem;border-left:2px solid var(--border);margin-bottom:.2rem;}
+.step-row.open{border-left-color:var(--done);}
+
+/* ── RECORD PANEL ── */
+.record-panel{background:var(--bg-card);border:1px solid var(--warn);border-radius:12px;padding:1.2rem;margin-bottom:1rem;display:none;}
+.record-panel.active{display:block;}
+.record-head{display:flex;align-items:center;gap:.8rem;margin-bottom:1rem;}
+.rec-dot{width:10px;height:10px;border-radius:50%;background:var(--err);animation:pulse .6s infinite;}
+.record-steps{max-height:200px;overflow-y:auto;margin-bottom:.8rem;}
+.record-step{padding:.35rem .6rem;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text-dim);font-family:monospace;display:flex;gap:.5rem;}
+.record-step .idx{color:var(--text-muted);width:20px;flex-shrink:0;}
+.record-step .act{color:var(--accent);width:70px;flex-shrink:0;}
+.record-step .sel{flex:1;color:var(--text-dim);}
+.record-step .val{color:var(--done);}
+
+/* ── GOMBOK ── */
+.btn{padding:.5rem 1rem;border:1px solid var(--border);border-radius:7px;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--border-hi);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+.btn-danger{border-color:var(--err);color:var(--err);}
+.btn-danger:hover:not(:disabled){background:rgba(231,76,60,.12);}
+.btn-warn{background:var(--warn);border-color:var(--warn);color:#000;font-weight:700;}
+.btn-warn:hover:not(:disabled){filter:brightness(1.1);}
+.btn-done{background:var(--done);border-color:var(--done);color:#000;font-weight:700;}
+.btn-sm{padding:.3rem .7rem;font-size:.76rem;}
+
+/* ── FORM ── */
+.field{margin-bottom:.8rem;}
+.field label{display:block;font-size:.76rem;color:var(--text-dim);margin-bottom:.3rem;}
+.field input,.field select,.field textarea{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.5rem .7rem;color:var(--text);font-size:.85rem;outline:none;font-family:inherit;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field textarea{resize:vertical;min-height:60px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg-card);border:1px solid var(--border-hi);border-radius:14px;padding:1.5rem;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:1.2rem;}
+.modal-btns{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem;}
+
+/* ── PING EREDMÉNY ── */
+.ping-result{font-size:.8rem;padding:.4rem .7rem;border-radius:6px;margin-top:.5rem;display:none;}
+.ping-result.ok {background:rgba(62,207,142,.1);border:1px solid var(--done);color:var(--done);}
+.ping-result.err{background:rgba(231,76,60,.1);border:1px solid var(--err);color:var(--err);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border-hi);border-radius:8px;padding:.6rem 1.2rem;font-size:.83rem;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.ok{border-color:var(--done);color:var(--done);}
+.toast.err{border-color:var(--err);color:var(--err);}
+.toast.warn{border-color:var(--warn);color:var(--warn);}
+
+/* ── STÁTUSZ DOT ── */
+.status-dot{position:fixed;bottom:1.2rem;right:1.2rem;width:10px;height:10px;border-radius:50%;background:var(--done);box-shadow:0 0 6px var(--done);animation:pulse2 2s ease-in-out infinite;cursor:pointer;}
+.status-dot.red{background:var(--err);box-shadow:0 0 6px var(--err);}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── TÉMA ── */
+.theme-bar{display:flex;gap:6px;}
+.theme-btn{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:border-color .2s;}
+.theme-btn:hover,.theme-btn.active{border-color:var(--text);}
+.theme-btn[data-t="ejszaka"]{background:#7c6af7;}
+.theme-btn[data-t="ocean"]{background:#38b2e0;}
+.theme-btn[data-t="forest"]{background:#4caf72;}
+.theme-btn[data-t="steel"]{background:#6a8fc8;}
+
+/* ── TYPE ICONS ── */
+.type-icon{font-size:1rem;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="fomenu.html" style="color:var(--text-muted);text-decoration:none;font-size:.85rem;">← Főmenü</a>
+    <h1>🌐 Webes árak</h1>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-bar" id="themeBar"></div>
+    <button class="btn btn-sm btn-danger" onclick="doLogout()">Kilépés</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── BAL PANEL: SOURCES LISTA ── -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <h2>Adatforrások</h2>
+      <button class="btn btn-sm btn-primary" onclick="openAddSource()">+ Hozzáad</button>
+    </div>
+    <div class="sources-list" id="sourcesList">
+      <div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.82rem;">Betöltés…</div>
+    </div>
+  </div>
+
+  <!-- ── JOBB PANEL: RÉSZLETEK ── -->
+  <div class="content" id="contentPanel">
+    <div class="empty-state">
+      <div class="icon">🌐</div>
+      <div>Válassz egy adatforrást a bal oldalon, vagy adj hozzá újat.</div>
+      <div style="font-size:.78rem;">A forrásokból a rendszer automatikusan gyűjti az árakat.<br>A <strong>Tanít</strong> gombbal megmutathatod hol találhatók a termékek.</div>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<!-- ── MODAL: ÚJ / SZERKESZTÉS ── -->
+<div class="overlay" id="modalSource">
+  <div class="modal">
+    <h3 id="modalTitle">Új adatforrás</h3>
+    <input type="hidden" id="src_id">
+    <div class="field"><label>Megnevezés *</label><input id="src_name" placeholder="pl. Wiha Webáruház"></div>
+    <div class="field"><label>URL *</label><input id="src_url" placeholder="https://webshop.wiha.com/hu" type="url"></div>
+    <div class="form-row">
+      <div class="field"><label>Típus</label>
+        <select id="src_type" onchange="onTypeChange()">
+          <option value="public">Nyilvános</option>
+          <option value="login_required">Belépés szükséges</option>
+          <option value="api">API</option>
+        </select>
+      </div>
+      <div class="field" id="loginUrlField" style="display:none;"><label>Login URL</label><input id="src_login_url" placeholder="https://…/login"></div>
+    </div>
+    <div id="loginFields" style="display:none;">
+      <div class="form-row">
+        <div class="field"><label>Felhasználónév</label><input id="src_username" placeholder="user@ceg.hu" autocomplete="off"></div>
+        <div class="field"><label>Jelszó</label><input id="src_password" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      </div>
+    </div>
+    <div class="field" id="apiKeyField" style="display:none;"><label>API kulcs</label><input id="src_apikey" type="password" placeholder="sk-…" autocomplete="off"></div>
+    <div class="field"><label>Megjegyzés</label><textarea id="src_notes" placeholder="Opcionális megjegyzés…"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalSource')">Mégse</button>
+      <button class="btn btn-primary" onclick="saveSource()">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast + státusz -->
+<div class="toast" id="toast"></div>
+<div class="status-dot" id="statusDot" title="Szerver"></div>
+
+<script>
+const API = 'http://localhost:8000';
+let _sources   = [];
+let _activeId  = null;
+let _recording = false;
+let _recSteps  = [];
+let _recType   = 'login';
+
+function getToken(){ return localStorage.getItem('crt-token')||''; }
+function authH()   { return {'Content-Type':'application/json','Authorization':'Bearer '+getToken()}; }
+
+// ── TÉMÁK ─────────────────────────────────────────────────────
+const THEMES = ['ejszaka','ocean','forest','steel'];
+document.getElementById('themeBar').innerHTML = THEMES.map(t=>
+  `<button class="theme-btn" data-t="${t}" title="${t}" onclick="setTheme('${t}')"></button>`
+).join('');
+function setTheme(t){
+  document.documentElement.dataset.theme=t;
+  localStorage.setItem('crt-theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+}
+(()=>{ const s=localStorage.getItem('crt-theme')||'ejszaka'; setTheme(THEMES.includes(s)?s:'ejszaka'); })();
+
+// ── AUTH ──────────────────────────────────────────────────────
+if(!getToken()) window.location.href='login.html';
+
+function doLogout(){
+  fetch(`${API}/auth/logout`,{method:'POST',headers:authH()}).catch(()=>{});
+  ['crt-token','crt-user','crt-role','crt-login-ts'].forEach(k=>localStorage.removeItem(k));
+  window.location.href='login.html';
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+let _tt=null;
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${type}`;
+  if(_tt)clearTimeout(_tt);
+  _tt=setTimeout(()=>el.className='toast',2500);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function onTypeChange(){
+  const t=document.getElementById('src_type').value;
+  document.getElementById('loginFields').style.display = t==='login_required'?'':'none';
+  document.getElementById('loginUrlField').style.display= t==='login_required'?'':'none';
+  document.getElementById('apiKeyField').style.display  = t==='api'?'':'none';
+}
+
+function openAddSource(){
+  document.getElementById('modalTitle').textContent='Új adatforrás';
+  document.getElementById('src_id').value='';
+  ['src_name','src_url','src_login_url','src_username','src_password','src_apikey','src_notes']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('src_type').value='public';
+  onTypeChange();
+  document.getElementById('modalSource').classList.add('open');
+  document.getElementById('src_name').focus();
+}
+
+function openEditSource(s){
+  document.getElementById('modalTitle').textContent='Forrás szerkesztése';
+  document.getElementById('src_id').value   = s.id;
+  document.getElementById('src_name').value = s.name;
+  document.getElementById('src_url').value  = s.url;
+  document.getElementById('src_type').value = s.source_type;
+  document.getElementById('src_login_url').value = s.login_url||'';
+  document.getElementById('src_username').value  = s.username||'';
+  document.getElementById('src_password').value  = '';
+  document.getElementById('src_apikey').value    = '';
+  document.getElementById('src_notes').value     = s.notes||'';
+  onTypeChange();
+  document.getElementById('modalSource').classList.add('open');
+}
+
+async function saveSource(){
+  const id   = document.getElementById('src_id').value;
+  const name = document.getElementById('src_name').value.trim();
+  const url  = document.getElementById('src_url').value.trim();
+  if(!name||!url){ toast('Megnevezés és URL kötelező!','err'); return; }
+
+  const body={
+    name, url,
+    source_type: document.getElementById('src_type').value,
+    login_url:   document.getElementById('src_login_url').value.trim()||null,
+    username:    document.getElementById('src_username').value.trim()||null,
+    notes:       document.getElementById('src_notes').value.trim()||null,
+  };
+  const pwd = document.getElementById('src_password').value;
+  const key = document.getElementById('src_apikey').value;
+  if(pwd) body.password = pwd;
+  if(key) body.api_key  = key;
+
+  try{
+    let res;
+    if(id){
+      res = await fetch(`${API}/web/sources/${id}`,{method:'PATCH',headers:authH(),body:JSON.stringify(body)});
+    } else {
+      res = await fetch(`${API}/web/sources`,{method:'POST',headers:authH(),body:JSON.stringify(body)});
+    }
+    const d=await res.json();
+    if(res.ok){
+      toast(id?'✓ Forrás módosítva':'✓ Forrás hozzáadva');
+      closeModal('modalSource');
+      await loadSources();
+      if(!id && d.id) selectSource(d.id);
+    } else {
+      toast(d.detail||'Hiba','err');
+    }
+  } catch{ toast('Szerver hiba','err'); }
+}
+
+// ── SOURCES LISTA ─────────────────────────────────────────────
+async function loadSources(){
+  try{
+    const res = await fetch(`${API}/web/sources`,{headers:authH()});
+    const d   = await res.json();
+    _sources  = d.sources||[];
+    renderSourcesList();
+  } catch{
+    document.getElementById('sourcesList').innerHTML=
+      '<div style="padding:1rem;color:var(--err);font-size:.8rem;">Betöltési hiba</div>';
+  }
+}
+
+function statusBadge(status){
+  const labels={new:'Új',reachable:'Elérhető',learned:'Megtanult',error:'Hiba',disabled:'Tiltott'};
+  return `<span class="s-badge s-${status}">${labels[status]||status}</span>`;
+}
+
+function typeIcon(t){
+  if(t==='public')         return '🌐';
+  if(t==='login_required') return '🔐';
+  if(t==='api')            return '⚡';
+  return '?';
+}
+
+function renderSourcesList(){
+  const el = document.getElementById('sourcesList');
+  if(!_sources.length){
+    el.innerHTML='<div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.82rem;">Nincs forrás felvéve</div>';
+    return;
+  }
+  el.innerHTML = _sources.map(s=>`
+    <div class="source-item${_activeId===s.id?' active':''}" onclick="selectSource(${s.id})">
+      <div class="source-name">${typeIcon(s.source_type)} ${esc(s.name)}</div>
+      <div class="source-url">${esc(s.url)}</div>
+      <div class="source-meta">
+        ${statusBadge(s.status)}
+        ${s.last_scraped
+          ? `<span style="font-size:.68rem;color:var(--text-muted);">Scrape: ${fmtDate(s.last_scraped)}</span>`
+          : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectSource(id){
+  _activeId = id;
+  renderSourcesList();
+  const s = _sources.find(x=>x.id===id);
+  if(s) renderDetail(s);
+}
+
+// ── RÉSZLET PANEL ─────────────────────────────────────────────
+async function renderDetail(s){
+  const panel = document.getElementById('contentPanel');
+  panel.innerHTML = `
+    <div class="detail">
+      <div class="detail-head">
+        <div class="detail-title">
+          <h2>${typeIcon(s.source_type)} ${esc(s.name)}</h2>
+          <div class="url-chip"><a href="${esc(s.url)}" target="_blank" style="color:var(--accent);">${esc(s.url)}</a></div>
+          <div style="margin-top:.4rem;display:flex;gap:.4rem;flex-wrap:wrap;">
+            ${statusBadge(s.status)}
+            <span style="font-size:.7rem;color:var(--text-muted);">Típus: ${s.source_type}</span>
+            ${s.has_password?'<span style="font-size:.7rem;color:var(--text-muted);">🔒 Jelszó beállítva</span>':''}
+            ${s.has_api_key ?'<span style="font-size:.7rem;color:var(--text-muted);">⚡ API kulcs beállítva</span>':''}
+          </div>
+        </div>
+        <div class="detail-actions">
+          <button class="btn btn-sm" onclick="pingSource(${s.id})">📡 Ping</button>
+          <button class="btn btn-sm" onclick="openEditSource(${JSON.stringify(s).replace(/"/g,'&quot;')})">Szerkesztés</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSource(${s.id})">Törlés</button>
+        </div>
+      </div>
+      <div id="pingResult" class="ping-result"></div>
+
+      <!-- TANÍT GOMB PANEL -->
+      <div class="card">
+        <div class="card-title">🎓 Tanít gomb – script rögzítés</div>
+        <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.8rem;line-height:1.6;">
+          Ha a rendszer nem találja a terméklistákat, megmutathatod hol keresse őket.<br>
+          Kattints a <strong>Tanít</strong> gombra, végezd el a szokásos belépést/navigálást,<br>
+          majd <strong>Rögzítés vége</strong> gombbal mentsd el a lépéseket.
+        </div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;" id="teachBtns">
+          ${s.source_type==='login_required'
+            ? `<button class="btn btn-warn" onclick="startRecord('login')">🎓 Tanít – Belépés</button>`
+            : ''}
+          <button class="btn btn-warn" onclick="startRecord('navigate')">🎓 Tanít – Navigálás</button>
+          <button class="btn btn-warn" onclick="startRecord('extract')">🎓 Tanít – Adatkinyerés</button>
+        </div>
+
+        <!-- Rögzítő panel -->
+        <div class="record-panel" id="recordPanel">
+          <div class="record-head">
+            <div class="rec-dot"></div>
+            <strong id="recTitle">Rögzítés folyamatban…</strong>
+            <span style="font-size:.75rem;color:var(--text-muted);" id="recStepCount">0 lépés</span>
+          </div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.6rem;">
+            Szimuláld a műveletet az alábbi lépések hozzáadásával (valós Playwright integráció v0.6-ban):
+          </div>
+
+          <!-- Manuális lépés hozzáadó (fejlesztési mód) -->
+          <div style="display:flex;gap:.4rem;margin-bottom:.6rem;flex-wrap:wrap;" id="stepAdder">
+            <select id="stepAction" style="background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.3rem .5rem;color:var(--text);font-size:.78rem;">
+              <option value="navigate">navigate</option>
+              <option value="click">click</option>
+              <option value="fill">fill</option>
+              <option value="wait">wait</option>
+              <option value="screenshot">screenshot</option>
+            </select>
+            <input id="stepSelector" placeholder="CSS selector pl. #email" style="flex:1;min-width:120px;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.3rem .5rem;color:var(--text);font-size:.78rem;">
+            <input id="stepValue" placeholder="érték / URL" style="flex:1;min-width:100px;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.3rem .5rem;color:var(--text);font-size:.78rem;">
+            <button class="btn btn-sm btn-primary" onclick="addStep()">+ Lépés</button>
+          </div>
+
+          <div class="record-steps" id="recordSteps"></div>
+
+          <div style="display:flex;gap:.5rem;margin-top:.6rem;">
+            <button class="btn btn-done" onclick="saveRecord(${s.id})">✓ Rögzítés vége – Mentés</button>
+            <button class="btn btn-sm btn-danger" onclick="cancelRecord()">× Mégse</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCRIPTEK -->
+      <div class="card" id="scriptsCard">
+        <div class="card-title">📜 Rögzített scriptek</div>
+        <div id="scriptsList">Betöltés…</div>
+      </div>
+
+      <!-- UTOLJÁRA GYŰJTÖTT ÁRAK -->
+      <div class="card">
+        <div class="card-title">💰 Legutóbb gyűjtött árak</div>
+        <div id="pricesList" style="font-size:.8rem;color:var(--text-muted);">Betöltés…</div>
+      </div>
+
+    </div>
+  `;
+
+  loadScripts(s.id);
+  loadPrices(s.id);
+}
+
+// ── PING ──────────────────────────────────────────────────────
+async function pingSource(id){
+  const el = document.getElementById('pingResult');
+  el.className='ping-result'; el.style.display='block'; el.textContent='Pingelés…';
+  try{
+    const res = await fetch(`${API}/web/sources/${id}/ping`,{method:'POST',headers:authH()});
+    const d   = await res.json();
+    if(d.reachable){
+      el.className='ping-result ok';
+      el.textContent=`✓ Elérhető (HTTP ${d.status_code})`;
+      // Frissítjük a listát
+      await loadSources();
+      renderSourcesList();
+    } else {
+      el.className='ping-result err';
+      el.textContent=`✗ Nem elérhető (HTTP ${d.status_code})`;
+    }
+  } catch{
+    el.className='ping-result err';
+    el.textContent='✗ Szerver hiba – nem sikerült pingelni';
+  }
+}
+
+// ── DELETE ────────────────────────────────────────────────────
+async function deleteSource(id){
+  if(!confirm('Biztosan törlöd ezt a forrást és az összes hozzá tartozó scriptet?')) return;
+  try{
+    const res = await fetch(`${API}/web/sources/${id}`,{method:'DELETE',headers:authH()});
+    if(res.ok){
+      toast('✓ Forrás törölve');
+      _activeId=null;
+      await loadSources();
+      document.getElementById('contentPanel').innerHTML=
+        '<div class="empty-state"><div class="icon">🌐</div><div>Válassz egy adatforrást.</div></div>';
+    } else {
+      const d=await res.json();
+      toast(d.detail||'Törlési hiba','err');
+    }
+  } catch{ toast('Szerver hiba','err'); }
+}
+
+// ── SCRIPTEK ──────────────────────────────────────────────────
+async function loadScripts(sourceId){
+  const el = document.getElementById('scriptsList');
+  if(!el) return;
+  try{
+    const res = await fetch(`${API}/web/sources/${sourceId}/scripts`,{headers:authH()});
+    const d   = await res.json();
+    const scripts = d.scripts||[];
+    if(!scripts.length){
+      el.innerHTML='<div style="color:var(--text-muted);font-size:.8rem;">Még nincs rögzített script – használd a Tanít gombot.</div>';
+      return;
+    }
+    const typeLabels={login:'Belépés',navigate:'Navigálás',extract:'Adatkinyerés',search:'Keresés'};
+    el.innerHTML = scripts.map(sc=>`
+      <div class="script-card">
+        <div class="script-head">
+          <div>
+            <span class="script-type">${typeLabels[sc.script_type]||sc.script_type}</span>
+            <span class="script-ver">v${sc.version}</span>
+            ${sc.active?'<span style="font-size:.65rem;color:var(--done);margin-left:.3rem;">● aktív</span>':'<span style="font-size:.65rem;color:var(--text-muted);margin-left:.3rem;">inaktív</span>'}
+          </div>
+          <div style="display:flex;gap:.4rem;">
+            <button class="btn btn-sm" onclick="viewScript(${sc.id})">Lépések</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteScript(${sc.id},${sourceId})">Töröl</button>
+          </div>
+        </div>
+        <div class="script-meta">
+          Rögzítve: ${fmtDate(sc.recorded_at)} · Futtatva: ${sc.run_count||0}x
+          ${sc.last_run_ok===true?'<span style="color:var(--done);">· utolsó: OK</span>':
+            sc.last_run_ok===false?'<span style="color:var(--err);">· utolsó: hiba</span>':''}
+        </div>
+      </div>
+    `).join('');
+  } catch{
+    if(el) el.innerHTML='<div style="color:var(--err);font-size:.8rem;">Betöltési hiba</div>';
+  }
+}
+
+async function viewScript(scriptId){
+  try{
+    const res = await fetch(`${API}/web/scripts/${scriptId}`,{headers:authH()});
+    const d   = await res.json();
+    const steps = d.script_json||[];
+    let html = `<div class="steps-list">`;
+    steps.forEach((s,i)=>{
+      html+=`<div class="step-row ${s.action==='navigate'||s.action==='click'?'open':''}">
+        <span style="color:var(--text-muted);">${i+1}.</span>
+        <span style="color:var(--accent);">${s.action}</span>
+        ${s.selector?`<span style="color:var(--text-dim);"> ${s.selector}</span>`:''}
+        ${s.value?`<span style="color:var(--done);"> = "${s.value}"</span>`:''}
+        ${s.wait_ms?`<span style="color:var(--warn);"> ⏱${s.wait_ms}ms</span>`:''}
+      </div>`;
+    });
+    html+='</div>';
+    alert(`Script lépések (${steps.length} db):\n\n${steps.map((s,i)=>`${i+1}. ${s.action} ${s.selector||''} ${s.value||''}`).join('\n')}`);
+  } catch{ toast('Betöltési hiba','err'); }
+}
+
+async function deleteScript(scriptId, sourceId){
+  if(!confirm('Törlöd ezt a scriptet?')) return;
+  try{
+    const res = await fetch(`${API}/web/scripts/${scriptId}`,{method:'DELETE',headers:authH()});
+    if(res.ok){ toast('✓ Script törölve'); loadScripts(sourceId); }
+    else{ const d=await res.json(); toast(d.detail||'Hiba','err'); }
+  } catch{ toast('Szerver hiba','err'); }
+}
+
+// ── ÁRAK ──────────────────────────────────────────────────────
+async function loadPrices(sourceId){
+  const el = document.getElementById('pricesList');
+  if(!el) return;
+  try{
+    const res = await fetch(`${API}/web/prices?source_id=${sourceId}&limit=20`,{headers:authH()});
+    const d   = await res.json();
+    const prices = d.prices||[];
+    if(!prices.length){
+      el.innerHTML='<div style="color:var(--text-muted);">Még nem futott scraper erre a forrásra.</div>';
+      return;
+    }
+    el.innerHTML=`
+      <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+        <thead><tr>
+          <th style="text-align:left;padding:.4rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Megnevezés</th>
+          <th style="text-align:right;padding:.4rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Ár</th>
+          <th style="text-align:center;padding:.4rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Egyezés</th>
+          <th style="text-align:left;padding:.4rem;color:var(--text-muted);border-bottom:1px solid var(--border);">Dátum</th>
+        </tr></thead>
+        <tbody>
+        ${prices.map(p=>`<tr>
+          <td style="padding:.35rem .4rem;color:var(--text-dim);">${esc(p.raw_name||'–')}</td>
+          <td style="padding:.35rem .4rem;text-align:right;color:var(--text);">${p.raw_price!=null?Number(p.raw_price).toLocaleString('hu-HU'):'–'} ${p.currency||''}</td>
+          <td style="padding:.35rem .4rem;text-align:center;">${p.matched
+            ?`<span style="color:var(--done);">✓ ${p.match_confidence?Math.round(p.match_confidence*100)+'%':''}</span>`
+            :'<span style="color:var(--text-muted);">–</span>'}</td>
+          <td style="padding:.35rem .4rem;color:var(--text-muted);">${fmtDate(p.scraped_at)}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="font-size:.72rem;color:var(--text-muted);margin-top:.4rem;">Utolsó ${prices.length} ár megjelenítve</div>
+    `;
+  } catch{
+    if(el) el.textContent='Betöltési hiba';
+  }
+}
+
+// ── TANÍT / RÖGZÍTÉS ──────────────────────────────────────────
+function startRecord(type){
+  _recording = true;
+  _recSteps  = [];
+  _recType   = type;
+  const labels={login:'Belépés',navigate:'Navigálás',extract:'Adatkinyerés'};
+  document.getElementById('recTitle').textContent=`Rögzítés: ${labels[type]||type}`;
+  document.getElementById('recStepCount').textContent='0 lépés';
+  document.getElementById('recordSteps').innerHTML='';
+  document.getElementById('recordPanel').classList.add('active');
+  document.getElementById('teachBtns').style.opacity='.4';
+  document.getElementById('teachBtns').style.pointerEvents='none';
+  toast(`Rögzítés indítva: ${labels[type]}. Add hozzá a lépéseket!`,'warn');
+}
+
+function addStep(){
+  const action   = document.getElementById('stepAction').value;
+  const selector = document.getElementById('stepSelector').value.trim();
+  const value    = document.getElementById('stepValue').value.trim();
+  if(!selector && !value && action!=='screenshot'){
+    toast('Add meg a selectort vagy az értéket!','err'); return;
+  }
+  _recSteps.push({action, selector:selector||null, value:value||null, wait_ms:null});
+  document.getElementById('stepSelector').value='';
+  document.getElementById('stepValue').value='';
+  renderRecordSteps();
+}
+
+function renderRecordSteps(){
+  const el = document.getElementById('recordSteps');
+  document.getElementById('recStepCount').textContent=`${_recSteps.length} lépés`;
+  el.innerHTML = _recSteps.map((s,i)=>`
+    <div class="record-step">
+      <span class="idx">${i+1}.</span>
+      <span class="act">${s.action}</span>
+      <span class="sel">${s.selector||''}</span>
+      <span class="val">${s.value?`= "${s.value}"`:''}
+      <button onclick="removeStep(${i})" style="background:none;border:none;color:var(--err);cursor:pointer;font-size:.8rem;margin-left:.3rem;">×</button></span>
+    </div>
+  `).join('');
+}
+
+function removeStep(i){
+  _recSteps.splice(i,1);
+  renderRecordSteps();
+}
+
+async function saveRecord(sourceId){
+  if(!_recSteps.length){ toast('Nincs rögzített lépés!','err'); return; }
+  try{
+    const body={
+      source_id:   sourceId,
+      script_type: _recType,
+      steps:       _recSteps,
+    };
+    const res = await fetch(`${API}/web/scripts`,{method:'POST',headers:authH(),body:JSON.stringify(body)});
+    const d   = await res.json();
+    if(res.ok){
+      toast(`✓ Script mentve (v${d.version}, ${_recSteps.length} lépés)`);
+      cancelRecord();
+      loadScripts(sourceId);
+      await loadSources();
+      renderSourcesList();
+    } else {
+      toast(d.detail||'Hiba','err');
+    }
+  } catch{ toast('Szerver hiba','err'); }
+}
+
+function cancelRecord(){
+  _recording=false; _recSteps=[];
+  document.getElementById('recordPanel').classList.remove('active');
+  document.getElementById('teachBtns').style.opacity='';
+  document.getElementById('teachBtns').style.pointerEvents='';
+}
+
+// ── SEGÉDFÜGGVÉNYEK ───────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso){
+  if(!iso) return '–';
+  try{
+    const d=new Date(iso);
+    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  } catch{ return iso; }
+}
+
+// ── STÁTUSZ DOT ───────────────────────────────────────────────
+async function checkStatus(){
+  const dot=document.getElementById('statusDot');
+  try{
+    const res=await fetch(`${API}/status/widget`,{signal:AbortSignal.timeout(4000)});
+    const d=await res.json();
+    dot.className=d.status==='green'?'status-dot':'status-dot red';
+    dot.title=d.status==='green'?`OK – ${d.time}`:`Hiba: ${JSON.stringify(d.checks)}`;
+  } catch{ dot.className='status-dot red'; dot.title='Szerver nem elérhető'; }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadSources();
+checkStatus();
+setInterval(checkStatus,30000);
+</script>
+</body>
+</html>

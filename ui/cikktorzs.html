@@ -280,6 +280,8 @@
         .btn-sav   { background: #00b894; border: none; color: #12121f; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: .77rem; font-weight: 700; }
         .btn-sav:hover    { opacity: .88; }
         .btn-sav:disabled { opacity: .35; cursor: default; }
+        .btn-openapp { background: #1c1c30; border: 1px solid #2a2a4a; color: #aaa; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .77rem; transition: border-color .12s, color .12s; }
+        .btn-openapp:hover { border-color: #f39c12; color: #f39c12; }
         .tok-badge { font-size: .67rem; color: #555; background: #12121f; border: 1px solid #2a2a4a; padding: 3px 9px; border-radius: 10px; }
 
         .rev-scroll { flex: 1; overflow-y: auto; padding: 0; }
@@ -435,6 +437,7 @@
         </div>
         <div class="rev-acts">
             <span class="tok-badge" id="tokBadge" style="display:none">0 token</span>
+            <button class="btn-openapp" id="btnOpenApp" style="display:none" onclick="openInApp()"></button>
             <button class="btn-ai"  id="btnAiAll"  onclick="identifyAll()">🤖 AI azonosítás – mind</button>
             <button class="btn-acc" id="btnAccAll" onclick="acceptAllGreen()">✅ Elfogad kész sorokat</button>
             <button class="btn-sav" id="btnSave"   onclick="saveRows()" disabled>💾 Mentés DB-be</button>
@@ -476,8 +479,13 @@
 
 <script>
 const API = 'http://localhost:8000';
+function getToken(){ return localStorage.getItem('crt-token')||''; }
+function authH(extra){ return Object.assign({'Authorization':'Bearer '+getToken()}, extra||{}); }
+if(!getToken()) window.location.href='login.html';
+
 let allData = { categories: [], products: [], activities: [] };
 let currentTab = 'termekek';
+let _currentFile = null;
 
 // ── TAB ──────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -493,7 +501,7 @@ async function loadTree() {
     document.getElementById('treeScroll').innerHTML = '<div class="loading">⏳ Betöltés…</div>';
     document.getElementById('statBadge').textContent = 'betöltés…';
     try {
-        const r = await fetch(API + '/cikktorzs/tree');
+        const r = await fetch(API + '/cikktorzs/tree', {headers: authH()});
         if (!r.ok) throw new Error('HTTP ' + r.status);
         allData = await r.json();
         populateCatFilter();
@@ -669,7 +677,7 @@ function onSearch(q) {
 
 async function doSearch(q) {
     try {
-        const r = await fetch(`${API}/cikktorzs/search?q=${encodeURIComponent(q)}`);
+        const r = await fetch(`${API}/cikktorzs/search?q=${encodeURIComponent(q)}`, {headers: authH()});
         const d = await r.json();
         if (!d.results || !d.results.length) {
             document.getElementById('searchResults').innerHTML = '<div class="search-hint">Nincs találat</div>';
@@ -733,6 +741,7 @@ function onFileSelect(file) {
         toast('Nem támogatott: .' + ext + ' — xlsx, csv, pdf, docx, html, md', 'err');
         return;
     }
+    _currentFile = file;
     uploadFile(file);
 }
 async function uploadFile(file) {
@@ -740,7 +749,7 @@ async function uploadFile(file) {
     const fd = new FormData();
     fd.append('file', file);
     try {
-        const r = await fetch(API + '/cikktorzs/upload', { method: 'POST', body: fd });
+        const r = await fetch(API + '/cikktorzs/upload', { method: 'POST', headers: authH(), body: fd });
         const d = await r.json();
         if (!r.ok) { toast(d.detail || 'Feldolgozási hiba', 'err'); return; }
         if (!d.rows || !d.rows.length) {
@@ -753,6 +762,7 @@ async function uploadFile(file) {
     }
 }
 function openManualEntry() {
+    _currentFile = null;
     openReview([{ name: '', manufacturer: '', unit: '', category: '', _raw: true }], 'Kézi bevitel');
 }
 
@@ -774,6 +784,25 @@ function openReview(rawRows, filename) {
     document.getElementById('revTitle').textContent = `📄 ${filename}`;
     document.getElementById('revSub').textContent   = `${_revRows.length} beolvasott sor – ellenőrizd és mentsd az adatbázisba`;
     document.getElementById('tokBadge').style.display = 'none';
+
+    // Megnyitás natív alkalmazásban gomb
+    const appBtn = document.getElementById('btnOpenApp');
+    if (_currentFile) {
+        const ext = _currentFile.name.split('.').pop().toLowerCase();
+        const isExcel = ['xlsx','xls','csv'].includes(ext);
+        const isWord  = ['docx','doc'].includes(ext);
+        if (isExcel) {
+            appBtn.textContent  = '📊 Megnyitás Excelben';
+            appBtn.style.display = '';
+        } else if (isWord) {
+            appBtn.textContent  = '📄 Megnyitás Wordben';
+            appBtn.style.display = '';
+        } else {
+            appBtn.style.display = 'none';
+        }
+    } else {
+        appBtn.style.display = 'none';
+    }
     renderRevTable();
     document.getElementById('revOverlay').classList.add('show');
 }
@@ -781,6 +810,19 @@ function openReview(rawRows, filename) {
 function closeReview() {
     document.getElementById('revOverlay').classList.remove('show');
     document.getElementById('fileInput').value = '';
+    _currentFile = null;
+}
+
+function openInApp() {
+    if (!_currentFile) return;
+    const url = URL.createObjectURL(_currentFile);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = _currentFile.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function renderRevTable() {
@@ -906,7 +948,7 @@ async function _callIdentify(idxs, texts) {
     try {
         const r = await fetch(API + '/cikktorzs/identify', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authH({'Content-Type': 'application/json'}),
             body: JSON.stringify({ items: texts })
         });
         const d = await r.json();

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="ejszaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRT – LoRA Finomhangolás</title>
+<style>
+[data-theme="ejszaka"]{--bg-deep:#0d0d14;--bg-card:#16161f;--border:#2a2a3e;--border-hi:#4a4a6a;--accent:#7c6af7;--accent-dim:#3d3478;--text:#e8e8f0;--text-dim:#9898b8;--text-muted:#5a5a7a;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="ocean"]{--bg-deep:#061624;--bg-card:#0c2236;--border:#1a3a55;--border-hi:#2e6a9a;--accent:#38b2e0;--accent-dim:#1a5c80;--text:#dff0fb;--text-dim:#7ab8d8;--text-muted:#3a6a88;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="forest"]{--bg-deep:#060f08;--bg-card:#0d1f10;--border:#1a3520;--border-hi:#2e6640;--accent:#4caf72;--accent-dim:#1e6636;--text:#d8f0dc;--text-dim:#78b890;--text-muted:#3a6848;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+[data-theme="steel"]{--bg-deep:#10141a;--bg-card:#1a2130;--border:#2a3548;--border-hi:#485a78;--accent:#6a8fc8;--accent-dim:#2e4878;--text:#d8e4f4;--text-dim:#8898b8;--text-muted:#485870;--done:#3ecf8e;--warn:#f5a623;--err:#e74c3c;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.2rem;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:.7rem;}
+.topbar h1{font-size:.95rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+.back-btn{background:none;border:1px solid var(--border);color:var(--text-dim);padding:.32rem .75rem;border-radius:7px;cursor:pointer;font-size:.78rem;}
+.back-btn:hover{border-color:var(--accent);color:var(--accent);}
+.badge{padding:.18rem .55rem;border-radius:99px;font-size:.68rem;font-weight:700;letter-spacing:.04em;}
+.badge-done{background:#1a3d2a;color:var(--done);}
+.badge-warn{background:#3d2a00;color:var(--warn);}
+.badge-err{background:#3d1010;color:var(--err);}
+.badge-info{background:var(--accent-dim);color:var(--accent);}
+.badge-muted{background:rgba(255,255,255,.06);color:var(--text-muted);}
+
+/* ── LAYOUT ── */
+.main{flex:1;overflow-y:auto;padding:1.8rem 2rem;max-width:900px;width:100%;}
+
+/* ── KÁRTYA ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.2rem 1.4rem;margin-bottom:1.2rem;}
+.card-title{font-size:.88rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;}
+.card-subtitle{font-size:.75rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5;}
+
+/* ── STAT SÁBOK ── */
+.stat-row{display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;}
+.stat-box{flex:1;min-width:140px;background:var(--bg-deep);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;text-align:center;}
+.stat-val{font-size:1.6rem;font-weight:800;color:var(--accent);}
+.stat-lbl{font-size:.7rem;color:var(--text-muted);margin-top:.15rem;}
+
+/* ── FORM ── */
+.field{margin-bottom:.75rem;}
+.field label{display:block;font-size:.73rem;color:var(--text-dim);margin-bottom:.22rem;}
+.field input,.field select{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.48rem .7rem;color:var(--text);font-size:.84rem;outline:none;font-family:inherit;transition:border-color .2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.field input[type=number]{max-width:140px;}
+.field-hint{font-size:.7rem;color:var(--text-muted);margin-top:.2rem;}
+.field-row{display:flex;gap:.8rem;flex-wrap:wrap;}
+.field-row .field{flex:1;min-width:160px;}
+
+/* ── GOMBOK ── */
+.btn{border:none;border-radius:8px;padding:.48rem 1.1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:opacity .15s;font-family:inherit;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){opacity:.85;}
+.btn-danger{background:rgba(231,76,60,.2);color:var(--err);border:1px solid rgba(231,76,60,.3);}
+.btn-danger:hover:not(:disabled){background:rgba(231,76,60,.35);}
+.btn-success{background:rgba(62,207,142,.15);color:var(--done);border:1px solid rgba(62,207,142,.25);}
+.btn-success:hover:not(:disabled){background:rgba(62,207,142,.28);}
+.btn-ghost{background:rgba(255,255,255,.05);color:var(--text-dim);border:1px solid var(--border);}
+.btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+
+/* ── FOLYAMATJELZŐ ── */
+.progress-wrap{margin-top:.8rem;display:none;}
+.progress-wrap.show{display:block;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:.5rem;}
+.progress-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .4s;}
+.progress-label{font-size:.75rem;color:var(--text-dim);}
+
+/* ── JOBS TÁBLA ── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:.8rem;}
+th{padding:.55rem .8rem;text-align:left;font-size:.7rem;color:var(--text-muted);font-weight:700;border-bottom:1px solid var(--border);letter-spacing:.04em;text-transform:uppercase;}
+td{padding:.6rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.td-actions{display:flex;gap:.4rem;justify-content:flex-end;}
+
+/* ── AKTÍV JOB PANEL ── */
+.live-panel{background:var(--bg-deep);border:1px solid var(--border-hi);border-radius:10px;padding:1rem 1.2rem;margin-top:.8rem;font-size:.8rem;}
+.live-row{display:flex;justify-content:space-between;margin-bottom:.35rem;color:var(--text-dim);}
+.live-row span{color:var(--text);}
+
+/* ── AKTÍV MODELL CHIP ── */
+.active-chip{display:inline-flex;align-items:center;gap:.4rem;background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.25);border-radius:99px;padding:.22rem .7rem;font-size:.74rem;color:var(--done);}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.1rem;font-size:.8rem;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);transform:translateY(20px);opacity:0;transition:all .25s;z-index:999;pointer-events:none;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.ok{border-color:var(--done);color:var(--done);}
+#toast.err{border-color:var(--err);color:var(--err);}
+
+/* ── SPINNER ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="back-btn" onclick="location.href='fomenu.html'">← Főmenü</button>
+    <h1>LoRA Finomhangolás</h1>
+    <span id="activeChip" class="active-chip" style="display:none">
+      ✓ <span id="activeChipLabel">aktív modell</span>
+    </span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost" style="font-size:.75rem" onclick="loadAll()">↻ Frissítés</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- STAT SÁBOK -->
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-val" id="statGolden">–</div>
+      <div class="stat-lbl">Golden példa</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="statJobs">–</div>
+      <div class="stat-lbl">Tréning futtatás</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="statLoss">–</div>
+      <div class="stat-lbl">Legjobb loss</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val" id="statStatus">–</div>
+      <div class="stat-lbl">Állapot</div>
+    </div>
+  </div>
+
+  <!-- TRÉNING INDÍTÁS -->
+  <div class="card">
+    <div class="card-title">🧠 Új tréning indítása</div>
+    <div class="card-subtitle">
+      A golden példatárból fine-tuned LoRA adapter készül.<br>
+      Minimum 10 jóváhagyott azonosítás szükséges. Tréning CPU-n is fut, de GPU-val ~10× gyorsabb.
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Alapmodell (HuggingFace ID)</label>
+        <input type="text" id="hfModel" placeholder="automatikus (Phi-3-mini / TinyLlama)" />
+        <div class="field-hint">Üresen hagyva: GPU-n Phi-3-mini-4k-instruct, CPU-n TinyLlama-1.1B</div>
+      </div>
+      <div class="field">
+        <label>Epoch szám</label>
+        <input type="number" id="epochs" value="3" min="1" max="20" />
+        <div class="field-hint">1–20 epoch (ajánlott: 3–5)</div>
+      </div>
+      <div class="field">
+        <label>LoRA rank (r)</label>
+        <input type="number" id="loraR" value="16" min="4" max="64" step="4" />
+        <div class="field-hint">4–64 (kisebb = gyorsabb, kevesebb paraméter)</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnTrain" onclick="startTrain()">▶ Tréning indítása</button>
+
+    <!-- Folyamatjelző futó job esetén -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-label" id="progressLabel">Inicializálás…</div>
+    </div>
+  </div>
+
+  <!-- JOBS LISTA -->
+  <div class="card">
+    <div class="card-title">📋 Tréning előzmények</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Job ID</th>
+            <th>Alapmodell</th>
+            <th>Példák</th>
+            <th>Epoch</th>
+            <th>Loss</th>
+            <th>Létrehozta</th>
+            <th>Státusz</th>
+            <th style="text-align:right">Műveletek</th>
+          </tr>
+        </thead>
+        <tbody id="jobsBody">
+          <tr><td colspan="8" style="color:var(--text-muted);text-align:center;padding:1.5rem">Betöltés…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FUTÓ JOB RÉSZLET -->
+  <div class="card" id="liveCard" style="display:none">
+    <div class="card-title"><span class="spin"></span>&nbsp; Futó tréning – live státusz</div>
+    <div class="live-panel" id="livePanel"></div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000';
+const tok = () => localStorage.getItem('crt-token') || '';
+
+// ── TÉMA ─────────────────────────────────────────────────────
+const th = localStorage.getItem('crt-theme');
+if (th) document.documentElement.setAttribute('data-theme', th);
+
+// ── TOAST ─────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+// ── API ───────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const r = await fetch(API + path, {
+    method,
+    headers: { Authorization: 'Bearer ' + tok(), 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (r.status === 401) { location.href = 'login.html'; return null; }
+  return r.ok ? r.json() : r.json().then(d => { throw new Error(d.detail || r.statusText); });
+}
+
+// ── STÁTUSZ BADGE ─────────────────────────────────────────────
+function statusBadge(s) {
+  const map = {
+    done: ['badge-done', '✓ Kész'],
+    pending: ['badge-muted', '⏳ Várakozik'],
+    running: ['badge-info', '⚙ Fut'],
+    error: ['badge-err', '✗ Hiba'],
+  };
+  const [cls, lbl] = map[s] || ['badge-muted', s];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+// ── STATS BETÖLTÉS ────────────────────────────────────────────
+async function loadStats() {
+  const d = await api('GET', '/lora/stats');
+  if (!d) return;
+
+  document.getElementById('statGolden').textContent = d.golden_examples ?? '–';
+  document.getElementById('statJobs').textContent   = d.jobs_total ?? '–';
+
+  const lj = d.last_job;
+  document.getElementById('statLoss').textContent =
+    lj?.train_loss != null ? lj.train_loss.toFixed(4) : '–';
+
+  const chip    = document.getElementById('activeChip');
+  const chipLbl = document.getElementById('activeChipLabel');
+  if (d.active_job_id) {
+    chip.style.display = '';
+    chipLbl.textContent = d.active_job_id;
+    document.getElementById('statStatus').textContent = 'Aktív';
+    document.getElementById('statStatus').style.color = 'var(--done)';
+  } else {
+    chip.style.display = 'none';
+    document.getElementById('statStatus').textContent = 'Inaktív';
+    document.getElementById('statStatus').style.color = 'var(--text-muted)';
+  }
+
+  document.getElementById('btnTrain').disabled = !d.ready_to_train;
+}
+
+// ── JOBS LISTA ────────────────────────────────────────────────
+let activeJobId = null;
+
+async function loadJobs() {
+  const d = await api('GET', '/lora/jobs');
+  if (!d) return;
+
+  const stats = await api('GET', '/lora/stats');
+  const currentActive = stats?.active_job_id || '';
+
+  const tbody = document.getElementById('jobsBody');
+  if (!d.jobs.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-muted);text-align:center;padding:1.5rem">Még nincs tréning</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = d.jobs.map(j => {
+    const isActive  = j.job_id === currentActive;
+    const isRunning = j.status === 'pending' || j.status === 'running';
+    const bm = (j.base_model || 'auto').replace('microsoft/', '').replace('TinyLlama/', '');
+
+    const activateBtn = j.status === 'done' && !isActive
+      ? `<button class="btn btn-success" onclick="activate('${j.job_id}')">Aktivál</button>` : '';
+    const deactivateBtn = isActive
+      ? `<button class="btn btn-ghost" onclick="deactivate()">Kikapcsol</button>` : '';
+    const detailBtn = isRunning
+      ? `<button class="btn btn-ghost" onclick="showLive('${j.job_id}')">Live</button>` : '';
+    // delete mindig látható – a szerver dönti el (status.json alapján), hogy valóban fut-e még
+    const deleteBtn = `<button class="btn btn-danger" onclick="deleteJob('${j.job_id}')" title="${isRunning ? 'Leállítás / befagyott job törlése' : 'Törlés'}">✕</button>`;
+
+    return `<tr>
+      <td><code style="font-size:.75rem;color:var(--text-dim)">${j.job_id}</code>${isActive ? ' <span class="badge badge-done">aktív</span>' : ''}</td>
+      <td style="font-size:.77rem">${bm}</td>
+      <td>${j.examples ?? '–'}</td>
+      <td>${j.epochs ?? '–'}</td>
+      <td>${j.train_loss != null ? j.train_loss.toFixed(4) : '–'}</td>
+      <td style="font-size:.75rem;color:var(--text-dim)">${j.created_by || '–'}</td>
+      <td>${statusBadge(j.status)}</td>
+      <td><div class="td-actions">${activateBtn}${deactivateBtn}${detailBtn}${deleteBtn}</div></td>
+    </tr>`;
+  }).join('');
+
+  // Ha fut valami, indítjuk a live pollozást
+  const running = d.jobs.find(j => j.status === 'pending' || j.status === 'running');
+  if (running) {
+    activeJobId = running.job_id;
+    showProgress(running);
+    if (!_pollTimer) _pollTimer = setInterval(pollRunning, 3000);
+  } else {
+    activeJobId = null;
+    document.getElementById('progressWrap').classList.remove('show');
+    document.getElementById('liveCard').style.display = 'none';
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  }
+}
+
+// ── TRÉNING INDÍTÁS ───────────────────────────────────────────
+async function startTrain() {
+  const hfModel = document.getElementById('hfModel').value.trim();
+  const epochs  = parseInt(document.getElementById('epochs').value) || 3;
+  const loraR   = parseInt(document.getElementById('loraR').value) || 16;
+
+  document.getElementById('btnTrain').disabled = true;
+  try {
+    const d = await api('POST', '/lora/train', { hf_model: hfModel, epochs, lora_r: loraR });
+    if (!d) return;
+    toast(`Tréning elindítva: ${d.job_id} (${d.examples} példa, ${d.epochs} epoch)`, 'ok');
+    loadAll();
+  } catch (e) {
+    toast(e.message, 'err');
+    document.getElementById('btnTrain').disabled = false;
+  }
+}
+
+// ── PROGRESS / LIVE ───────────────────────────────────────────
+let _pollTimer = null;
+const PROGRESS_STEPS = { init: 5, loading_model: 15, preparing: 30, training: 60, done: 100, error: 0 };
+
+function showProgress(job) {
+  const pw = document.getElementById('progressWrap');
+  pw.classList.add('show');
+  const pct = PROGRESS_STEPS[job.status] || 10;
+  document.getElementById('progressFill').style.width = pct + '%';
+  const labels = {
+    init: 'Inicializálás…', loading_model: 'Modell betöltése (lehet néhány perc)…',
+    preparing: 'Adatok előkészítése…', training: 'Tréning folyamatban…',
+    done: 'Kész!', error: 'Hiba történt',
+  };
+  document.getElementById('progressLabel').textContent = labels[job.status] || job.status;
+}
+
+async function pollRunning() {
+  if (!activeJobId) return;
+  const d = await api('GET', `/lora/jobs/${activeJobId}`);
+  if (!d) return;
+
+  const live = d.live_status || {};
+  const status = live.status || d.status;
+  showProgress({ status });
+
+  const liveCard = document.getElementById('liveCard');
+  liveCard.style.display = '';
+  const fields = [
+    ['Állapot', status], ['Alapmodell', live.base_model || d.base_model || '–'],
+    ['Példák', live.examples || d.examples || '–'],
+    ['GPU', live.has_gpu != null ? (live.has_gpu ? 'Igen' : 'CPU mód') : '–'],
+    ['Epoch', live.epochs || d.epochs || '–'],
+    ['Train loss', live.train_loss != null ? live.train_loss.toFixed(4) : '–'],
+    ['Eltelt idő', live.elapsed_sec != null ? Math.round(live.elapsed_sec / 60) + ' perc' : '–'],
+  ];
+  document.getElementById('livePanel').innerHTML = fields
+    .map(([k, v]) => `<div class="live-row"><b>${k}</b><span>${v}</span></div>`)
+    .join('');
+
+  if (status === 'done' || status === 'error') {
+    clearInterval(_pollTimer); _pollTimer = null;
+    activeJobId = null;
+    document.getElementById('progressFill').style.width = status === 'done' ? '100%' : '0%';
+    setTimeout(loadAll, 1000);
+    toast(status === 'done' ? 'Tréning sikeresen befejezve!' : 'Tréning hiba – részletek a live panelen', status === 'done' ? 'ok' : 'err');
+  }
+}
+
+function showLive(jobId) {
+  activeJobId = jobId;
+  pollRunning();
+}
+
+// ── AKTIVÁLÁS / DEAKTIVÁLÁS ───────────────────────────────────
+async function activate(jobId) {
+  if (!confirm(`Aktiválja ezt a modellt?\n${jobId}\n\nAz AI azonosítás ettől kezdve ezt használja (Claude és Ollama előtt).`)) return;
+  try {
+    await api('POST', `/lora/jobs/${jobId}/activate`);
+    toast('Modell aktiválva!', 'ok');
+    loadAll();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function deactivate() {
+  if (!confirm('Kikapcsolja a LoRA modellt? Visszaáll a Claude/Ollama pipeline.')) return;
+  try {
+    await api('POST', '/lora/deactivate');
+    toast('LoRA deaktiválva – Claude/Ollama pipeline aktív', 'ok');
+    loadAll();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── TÖRLÉS ────────────────────────────────────────────────────
+async function deleteJob(jobId) {
+  if (!confirm(`Törli ezt a job-ot és az adapter fájlokat?\n${jobId}`)) return;
+  try {
+    await api('DELETE', `/lora/jobs/${jobId}`);
+    toast('Job törölve', 'ok');
+    loadAll();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+function loadAll() { loadStats(); loadJobs(); }
+
+if (!tok()) { location.href = 'login.html'; }
+else { loadAll(); }
+</script>
+</body>
+</html>
