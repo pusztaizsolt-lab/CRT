@@ -235,6 +235,33 @@
         }
         .b-protected { background: #7c5cbf22; color: #c8a4f8; }
 
+        /* ── OPERATÍV ÁLLAPOT ─────────────────────────────── */
+        .ops-panel{background:#1c1c30;border:1px solid #2a2a4a;border-radius:10px;padding:16px 20px;margin-bottom:20px}
+        .ops-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+        .ops-title{font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:#666;border-left:3px solid #7c5cbf;padding-left:10px}
+        .ops-time{font-size:.68rem;color:#3a3a5a}
+        .ops-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+        @media(max-width:700px){.ops-grid{grid-template-columns:1fr}}
+        .ops-card{background:#12121f;border:1px solid #222238;border-radius:7px;padding:10px 12px}
+        .ops-card-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#5a5a7a;margin-bottom:8px}
+        .ops-row{display:flex;justify-content:space-between;font-size:.75rem;color:#666;padding:2px 0;border-bottom:1px solid #1a1a2e}
+        .ops-row:last-child{border-bottom:none}
+        .ops-val{color:#dde1e7;font-weight:600;font-size:.73rem}
+        .ops-val.ok{color:#00b894}
+        .ops-val.err{color:#e74c3c}
+        .ops-val.warn{color:#f39c12}
+        .ops-bar-bg{background:#1c1c30;border-radius:4px;height:5px;overflow:hidden;margin-top:8px}
+        .ops-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#00b894,#7c5cbf);transition:width .5s}
+        .daemon-bar{display:flex;align-items:center;gap:10px;font-size:.73rem;color:#5a5a7a;background:#12121f;border:1px solid #1a1a2e;border-radius:6px;padding:6px 12px;flex-wrap:wrap}
+        .daemon-title{color:#7c5cbf;font-weight:600;flex-shrink:0}
+        .daemon-link{color:#5050c0;text-decoration:none;margin-left:auto;flex-shrink:0}
+        .daemon-comp{display:inline-flex;align-items:center;gap:4px;margin-right:6px}
+        .dc{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+        .dc-ok{background:#00b894}
+        .dc-dn{background:#e74c3c;animation:blink 1s infinite}
+        .dc-dg{background:#f39c12}
+        .dc-un{background:#444}
+
         /* ── AI JÓVÁHAGYÓ POPUP ───────────────────────────── */
         .overlay {
             display: none;
@@ -370,6 +397,56 @@
     <div class="li"><div class="ld" style="background:#00b894"></div> Kész / Aktív</div>
     <div class="li"><div class="ld" style="background:#f39c12"></div> Részleges</div>
     <div class="li"><div class="ld" style="background:#c0392b"></div> Inaktív / Tervezett</div>
+</div>
+
+<!-- OPERATÍV ÁLLAPOT -->
+<div class="ops-panel">
+    <div class="ops-header">
+        <span class="ops-title">Operatív állapot</span>
+        <span class="ops-time" id="opsTime">–</span>
+    </div>
+    <div class="ops-grid">
+
+        <!-- Rendszer -->
+        <div class="ops-card">
+            <div class="ops-card-title">Rendszer</div>
+            <div class="ops-row"><span>API</span><span class="ops-val" id="o-api">–</span></div>
+            <div class="ops-row"><span>DB</span><span class="ops-val" id="o-db">–</span></div>
+            <div class="ops-row"><span>ChromaDB</span><span class="ops-val" id="o-chroma">–</span></div>
+            <div class="ops-row"><span>Ollama</span><span class="ops-val" id="o-ollama">–</span></div>
+            <div class="ops-row"><span>Cikktörzs</span><span class="ops-val" id="o-prods">–</span></div>
+            <div class="ops-row"><span>Utolsó scraping</span><span class="ops-val" id="o-scrape">–</span></div>
+        </div>
+
+        <!-- AI motor -->
+        <div class="ops-card">
+            <div class="ops-card-title">AI motor</div>
+            <div class="ops-row"><span>Aktív motor</span><span class="ops-val" id="o-motor">–</span></div>
+            <div class="ops-row"><span>Golden példák</span><span class="ops-val" id="o-golden">–</span></div>
+            <div class="ops-row"><span>LoRA kész</span><span class="ops-val" id="o-lora-rdy">–</span></div>
+            <div class="ops-row"><span>LoRA aktív</span><span class="ops-val" id="o-lora-act">–</span></div>
+            <div class="ops-row"><span>Claude API</span><span class="ops-val" id="o-claude">–</span></div>
+        </div>
+
+        <!-- Árfedettség -->
+        <div class="ops-card">
+            <div class="ops-card-title">Árfedettség</div>
+            <div class="ops-row"><span>Fedettség</span><span class="ops-val" id="o-cov">–</span></div>
+            <div class="ops-row"><span>Cikkek árral</span><span class="ops-val" id="o-with">–</span></div>
+            <div class="ops-row"><span>Ár nélkül</span><span class="ops-val" id="o-without">–</span></div>
+            <div class="ops-row"><span>Friss 7 napon</span><span class="ops-val" id="o-f7">–</span></div>
+            <div class="ops-row"><span>Friss 30 napon</span><span class="ops-val" id="o-f30">–</span></div>
+            <div class="ops-bar-bg"><div class="ops-bar-fill" id="o-cov-bar" style="width:0%"></div></div>
+        </div>
+
+    </div>
+
+    <!-- Daemon mini-sáv -->
+    <div class="daemon-bar">
+        <span class="daemon-title">CRT Daemon :8099</span>
+        <span id="daemon-comps">csatlakozás…</span>
+        <a href="http://localhost:8099" target="_blank" class="daemon-link">Dashboard →</a>
+    </div>
 </div>
 
 <!-- BACKEND -->
@@ -854,7 +931,94 @@
     }
 
     checkHealth();
-    setInterval(checkHealth, 15000); // 15 mp-enként frissít
+    setInterval(checkHealth, 15000);
+
+    // ── STATS DASHBOARD ──────────────────────────────────────
+    function setOpsVal(id, text, cls) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'ops-val' + (cls ? ' ' + cls : '');
+    }
+
+    async function loadStats() {
+        try {
+            const token = localStorage.getItem('crt_token') || sessionStorage.getItem('crt_token') || '';
+            const r = await fetch('http://localhost:8000/stats/dashboard', {
+                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (!r.ok) return;
+            const d = await r.json();
+
+            document.getElementById('opsTime').textContent =
+                'frissítve: ' + new Date().toLocaleTimeString('hu');
+
+            // Rendszer
+            const s = d.system;
+            setOpsVal('o-api',    'OK',                             'ok');
+            setOpsVal('o-db',     s.db,                            s.db === 'ok' ? 'ok' : 'err');
+            setOpsVal('o-chroma', s.chromadb,                      s.chromadb === 'ok' ? 'ok' : 'warn');
+            setOpsVal('o-ollama', s.ollama,                        s.ollama === 'ok' ? 'ok' : 'warn');
+            setOpsVal('o-prods',  s.total_products + ' t · ' + s.total_activities + ' tv');
+            setOpsVal('o-scrape', s.last_scraping
+                ? s.last_scraping.slice(0, 16).replace('T', ' ')
+                : 'nincs');
+
+            // AI
+            const ai = d.ai;
+            setOpsVal('o-motor',    ai.active_motor,               ai.active_motor !== 'nincs' ? 'ok' : 'err');
+            setOpsVal('o-golden',   ai.golden_count + ' db',       ai.golden_count >= 10 ? 'ok' : 'warn');
+            setOpsVal('o-lora-rdy', ai.lora_ready ? 'igen'
+                : 'kell még ' + (10 - ai.golden_count) + ' db',   ai.lora_ready ? 'ok' : 'warn');
+            setOpsVal('o-lora-act', ai.lora_active ? 'aktív' : 'nincs', ai.lora_active ? 'ok' : '');
+            setOpsVal('o-claude',   ai.claude_api_set ? 'beállítva' : 'nincs', ai.claude_api_set ? 'ok' : '');
+
+            // Árak
+            const p = d.prices;
+            const covCls = p.coverage_pct >= 80 ? 'ok' : p.coverage_pct >= 50 ? 'warn' : 'err';
+            setOpsVal('o-cov',     p.coverage_pct + '%',           covCls);
+            setOpsVal('o-with',    p.items_with_price + ' / ' + p.total_items);
+            setOpsVal('o-without', p.items_without > 0
+                ? p.items_without + ' db'
+                : 'mind lefedve',                                  p.items_without > 0 ? 'warn' : 'ok');
+            setOpsVal('o-f7',      p.fresh_7d + ' db');
+            setOpsVal('o-f30',     p.fresh_30d + ' db');
+            const bar = document.getElementById('o-cov-bar');
+            if (bar) bar.style.width = Math.min(p.coverage_pct, 100) + '%';
+
+        } catch (e) {
+            // Szerver nem fut — csendben
+        }
+    }
+
+    // ── DAEMON SSE WIDGET ─────────────────────────────────────
+    function startDaemonSSE() {
+        const es = new EventSource('http://localhost:8099/events');
+        es.onmessage = e => {
+            try {
+                const data = JSON.parse(e.data);
+                const s = data.summary;
+                const comps = (data.components || []).filter(c => c.type === 'process');
+                let html = comps.map(c => {
+                    const cls = c.status === 'ok' ? 'dc-ok'
+                              : c.status === 'down' ? 'dc-dn'
+                              : c.status === 'degraded' ? 'dc-dg' : 'dc-un';
+                    return `<span class="daemon-comp"><span class="dc ${cls}"></span>${c.label}</span>`;
+                }).join('');
+                html += `<span style="color:#4a4a6a;margin-left:4px">${s.ok}/${data.components.length} OK</span>`;
+                document.getElementById('daemon-comps').innerHTML = html;
+            } catch (_) {}
+        };
+        es.onerror = () => {
+            document.getElementById('daemon-comps').textContent = 'Daemon nem fut (:8099)';
+            es.close();
+            setTimeout(startDaemonSSE, 15000);
+        };
+    }
+
+    loadStats();
+    setInterval(loadStats, 30000);
+    startDaemonSSE();
 </script>
 
 </body>

@@ -4,15 +4,15 @@ Port: 8099  |  Asyncio + aiohttp  |  Nincs DB függés
 
 Feladatok:
   - ping pipe-ok: minden CRT port + router 20s-ként
-  - watchdog: ha le → restart
-  - scheduler: scraper, backup, heartbeat email
-  - HTTP :8099 /status /metrics /ui
-  - tálca ikon (opcionális)
+  - watchdog: ha le → restart + email
+  - scheduler: heartbeat email
+  - HTTP :8099 /  /status  /metrics  /events  /restart/<id>
+  - SSE: valós idejű push dashboard frissítéshez
 
 Indítás: py -3.11 crt_daemon.py
-NSSM:    nssm install CRT-Daemon py -3.11 D:\CRT\crt_daemon.py
+NSSM:    nssm install CRT-Daemon py -3.11 D:\\CRT\\crt_daemon.py
 """
-import asyncio, socket, logging, json, os, sys, time, smtplib, subprocess
+import asyncio, socket, logging, json, sys, time, smtplib, subprocess
 from datetime import datetime
 from pathlib import Path
 from email.mime.text import MIMEText
@@ -31,10 +31,11 @@ except ImportError:
     PSUTIL = False
 
 # ── KONFIG ────────────────────────────────────────────────────
-ROOT      = Path(__file__).parent
-DAEMON_PORT = 8099
-PING_INTERVAL = 20          # másodperc
-LOG_FILE  = ROOT / "logs" / "daemon.log"
+ROOT             = Path(__file__).parent
+DAEMON_PORT      = 8099
+PING_INTERVAL    = 20    # másodperc — TCP + HTTP ping
+AI_DEEP_INTERVAL = 300   # másodperc — AI inference teszt (5 perc)
+LOG_FILE         = ROOT / "logs" / "daemon.log"
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
@@ -48,7 +49,6 @@ logging.basicConfig(
 log = logging.getLogger("CRT.daemon")
 
 # ── KOMPONENS TÁBLA ───────────────────────────────────────────
-# Amit a main.py importál — ez a ping pipe forrása
 COMPONENTS = [
     # ── PROCESS SZINT (TCP socket ping) ──────────────────────
     {
@@ -76,38 +76,40 @@ COMPONENTS = [
     },
 
     # ── ROUTER SZINT (HTTP ping a FastAPI-ra) ─────────────────
-    {"id": "auth",       "label": "Auth",       "type": "router", "http_check": "http://127.0.0.1:8000/health"},
-    {"id": "prices",     "label": "Árak",       "type": "router", "http_check": "http://127.0.0.1:8000/prices/stats"},
-    {"id": "quotes",     "label": "Ajánlatok",  "type": "router", "http_check": "http://127.0.0.1:8000/quotes/"},
-    {"id": "web",        "label": "Web scraper","type": "router", "http_check": "http://127.0.0.1:8000/web/sources"},
-    {"id": "golden",     "label": "Golden",     "type": "router", "http_check": "http://127.0.0.1:8000/golden/stats"},
-    {"id": "lora",       "label": "LoRA",       "type": "router", "http_check": "http://127.0.0.1:8000/lora/stats"},
-    {"id": "export",     "label": "Export",     "type": "router", "http_check": "http://127.0.0.1:8000/export/"},
+    {"id": "auth",    "label": "Auth",        "type": "router", "http_check": "http://127.0.0.1:8000/health"},
+    {"id": "prices",  "label": "Árak",        "type": "router", "http_check": "http://127.0.0.1:8000/prices/stats"},
+    {"id": "quotes",  "label": "Ajánlatok",   "type": "router", "http_check": "http://127.0.0.1:8000/quotes/"},
+    {"id": "web",     "label": "Web scraper", "type": "router", "http_check": "http://127.0.0.1:8000/web/sources"},
+    {"id": "golden",  "label": "Golden",      "type": "router", "http_check": "http://127.0.0.1:8000/golden/stats"},
+    {"id": "lora",    "label": "LoRA",        "type": "router", "http_check": "http://127.0.0.1:8000/lora/stats"},
+    {"id": "export",  "label": "Export",      "type": "router", "http_check": "http://127.0.0.1:8000/export/"},
 
     # ── MOTOR SZINT ───────────────────────────────────────────
-    {"id": "ai_motor",    "label": "AI Motor",   "type": "motor",  "http_check": "http://127.0.0.1:8000/ollama/status"},
-    {"id": "chroma_motor","label": "Chroma",     "type": "motor",  "http_check": "http://127.0.0.1:8000/chroma/stats"},
-    {"id": "vision",      "label": "Vision",     "type": "motor",  "http_check": "http://127.0.0.1:8000/vision/status"},
+    {"id": "ai_motor",     "label": "AI Motor", "type": "motor", "http_check": "http://127.0.0.1:8000/ollama/status"},
+    {"id": "chroma_motor", "label": "Chroma",   "type": "motor", "http_check": "http://127.0.0.1:8000/chroma/stats"},
+    {"id": "vision",       "label": "Vision",   "type": "motor", "http_check": "http://127.0.0.1:8000/vision/status"},
 
     # ── STATS ─────────────────────────────────────────────────
-    {"id": "dashboard",   "label": "Dashboard",  "type": "stats",  "http_check": "http://127.0.0.1:8000/stats/dashboard"},
+    {"id": "dashboard", "label": "Dashboard", "type": "stats", "http_check": "http://127.0.0.1:8000/stats/dashboard"},
 ]
 
 # ── STATE ─────────────────────────────────────────────────────
-state = {
+state: dict[str, dict] = {
     c["id"]: {
-        "id":      c["id"],
-        "label":   c["label"],
-        "type":    c["type"],
-        "status":  "unknown",
-        "last_ok": None,
+        "id":         c["id"],
+        "label":      c["label"],
+        "type":       c["type"],
+        "status":     "unknown",
+        "last_ok":    None,
         "last_check": None,
-        "error":   None,
-        "restarts": 0,
+        "error":      None,
+        "restarts":   0,
     }
     for c in COMPONENTS
 }
 _last_email_error: dict[str, float] = {}
+_last_ai_deep: float = 0.0      # epoch — utolsó AI inference teszt
+_ai_deep_result: dict = {}      # cache az utolsó AI teszt eredményéből
 
 
 # ── PING PIPE-OK ──────────────────────────────────────────────
@@ -124,7 +126,7 @@ def _tcp_ping(host: str, port: int, timeout: float = 2.0) -> bool:
 async def _http_ping(url: str, timeout: float = 4.0) -> bool:
     """HTTP GET ping — router/motor szintű."""
     if not AIOHTTP:
-        return True   # ha nincs aiohttp, átugorjuk
+        return True
     try:
         async with aiohttp.ClientSession() as s:
             async with s.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as r:
@@ -137,66 +139,76 @@ async def ping_component(c: dict) -> bool:
     """Egy komponens teljes ping pipe-ja."""
     cid = c["id"]
 
-    # TCP szint (process típusoknál)
     if "port" in c:
-        tcp_ok = _tcp_ping(c["host"], c["port"])
-        if not tcp_ok:
-            state[cid]["status"]     = "down"
-            state[cid]["error"]      = f"TCP port {c['port']} nem válaszol"
-            state[cid]["last_check"] = datetime.now().isoformat()
+        if not _tcp_ping(c["host"], c["port"]):
+            state[cid].update(
+                status="down",
+                error=f"TCP port {c['port']} nem válaszol",
+                last_check=datetime.now().isoformat()
+            )
             return False
 
-    # HTTP szint (ha van)
     if "http_check" in c:
-        http_ok = await _http_ping(c["http_check"])
-        if not http_ok:
-            state[cid]["status"]     = "degraded"
-            state[cid]["error"]      = f"HTTP {c['http_check']} nem válaszol"
-            state[cid]["last_check"] = datetime.now().isoformat()
+        if not await _http_ping(c["http_check"]):
+            state[cid].update(
+                status="degraded",
+                error=f"HTTP nem válaszol: {c['http_check']}",
+                last_check=datetime.now().isoformat()
+            )
             return False
 
-    # OK
-    state[cid]["status"]     = "ok"
-    state[cid]["last_ok"]    = datetime.now().isoformat()
-    state[cid]["last_check"] = datetime.now().isoformat()
-    state[cid]["error"]      = None
+    state[cid].update(
+        status="ok",
+        last_ok=datetime.now().isoformat(),
+        last_check=datetime.now().isoformat(),
+        error=None
+    )
     return True
 
 
 # ── WATCHDOG LOOP ─────────────────────────────────────────────
 
 async def watchdog_loop():
-    """Minden komponenst pingel PING_INTERVAL másodpercenként."""
-    log.info("Watchdog indul — %ds interval", PING_INTERVAL)
+    global _last_ai_deep, _ai_deep_result
+    log.info("Watchdog indul — ping: %ds  AI deep: %ds", PING_INTERVAL, AI_DEEP_INTERVAL)
     while True:
         fastapi_ok = True
         for c in COMPONENTS:
-            cid = c["id"]
+            cid  = c["id"]
             prev = state[cid]["status"]
             ok   = await ping_component(c)
 
-            # ── DB deep health (írás+olvasás echo) ──────────────
+            # ── DB deep health (SELECT NOW — olvasás echo) ──────────
             if cid == "postgresql" and ok:
                 db_h = await _db_health_check()
                 state[cid]["db_echo"] = db_h["echo"]
                 if not db_h["ok"]:
-                    state[cid]["status"] = "degraded"
-                    state[cid]["error"]  = f"DB echo fail: {db_h['echo']}"
+                    state[cid].update(status="degraded", error=f"DB echo: {db_h['echo']}")
                     ok = False
-                else:
-                    log.debug("DB echo: %s", db_h["echo"])
 
-            # ── AI deep health (modell + mini inference) ─────────
+            # ── AI deep health (csak 5 percenként) ─────────────────
             if cid == "ollama" and ok:
-                ai_h = await _ai_health_check()
-                state[cid]["ai_models"] = ai_h.get("models", [])
-                state[cid]["ai_echo"]   = ai_h.get("echo", "")
-                if not ai_h["ok"]:
-                    state[cid]["status"] = "degraded"
-                    state[cid]["error"]  = f"AI echo fail: {ai_h.get('reason', ai_h.get('echo','?'))}"
-                    ok = False
+                now = time.time()
+                if now - _last_ai_deep >= AI_DEEP_INTERVAL:
+                    ai_h = await _ai_health_check()
+                    _last_ai_deep   = now
+                    _ai_deep_result = ai_h
+                    state[cid]["ai_models"] = ai_h.get("models", [])
+                    state[cid]["ai_echo"]   = ai_h.get("echo", "")
+                    if not ai_h["ok"]:
+                        state[cid].update(
+                            status="degraded",
+                            error=f"AI inference: {ai_h.get('reason', ai_h.get('echo', '?'))}"
+                        )
+                        ok = False
                 else:
-                    log.debug("AI echo: %s @ %s", ai_h.get("echo"), ai_h.get("model"))
+                    # cache-elt eredmény alkalmazása
+                    if not _ai_deep_result.get("ok", True):
+                        state[cid].update(
+                            status="degraded",
+                            error=f"AI (cached): {_ai_deep_result.get('reason', '?')}"
+                        )
+                        ok = False
 
             if not ok and prev == "ok":
                 log.warning("LEÁLLT: %s", cid)
@@ -205,13 +217,12 @@ async def watchdog_loop():
             if ok and prev in ("down", "degraded", "unknown"):
                 log.info("VISSZAÁLLT: %s", cid)
 
-            if cid == "fastapi" and not ok:
-                fastapi_ok = False
+            if cid == "fastapi":
+                fastapi_ok = ok
 
-            # Router/motor szint: ha FastAPI le → ne pingeljük
+            # Router/motor szint: ha FastAPI le → automatikusan down
             if not fastapi_ok and c["type"] in ("router", "motor", "stats"):
-                state[cid]["status"] = "down"
-                state[cid]["error"]  = "FastAPI nem fut"
+                state[cid].update(status="down", error="FastAPI nem fut")
 
         await asyncio.sleep(PING_INTERVAL)
 
@@ -221,7 +232,6 @@ async def _on_down(c: dict):
     cid = c["id"]
     state[cid]["restarts"] = state[cid].get("restarts", 0) + 1
 
-    # Restart kísérlet
     restart_cmd = c.get("restart")
     if restart_cmd and Path(restart_cmd).exists():
         log.info("Restart: %s → %s", cid, restart_cmd)
@@ -233,14 +243,13 @@ async def _on_down(c: dict):
         except Exception as e:
             log.error("Restart hiba %s: %s", cid, e)
 
-    # Email — legfeljebb 30 percenként ugyanarról a komponensről
     now = time.time()
     if now - _last_email_error.get(cid, 0) > 1800:
         _last_email_error[cid] = now
         await asyncio.get_event_loop().run_in_executor(
             None, _send_email,
             f"CRT Daemon: {c['label']} leállt",
-            f"Komponens: {cid}\nHiba: {state[cid].get('error','?')}\n"
+            f"Komponens: {cid}\nHiba: {state[cid].get('error', '?')}\n"
             f"Restart kísérlet: {state[cid]['restarts']}\n"
             f"Idő: {datetime.now().isoformat()}"
         )
@@ -249,7 +258,6 @@ async def _on_down(c: dict):
 # ── EMAIL ─────────────────────────────────────────────────────
 
 def _load_smtp_config() -> dict:
-    """SMTP konfig .env-ből vagy system_config táblából (egyszerű fallback)."""
     cfg = {}
     env_file = ROOT / ".env"
     if env_file.exists():
@@ -261,7 +269,7 @@ def _load_smtp_config() -> dict:
 
 
 def _send_email(subject: str, body: str):
-    cfg = _load_smtp_config()
+    cfg  = _load_smtp_config()
     host = cfg.get("SMTP_HOST") or cfg.get("smtp_host", "")
     port = int(cfg.get("SMTP_PORT") or cfg.get("smtp_port", 587))
     user = cfg.get("SMTP_USER") or cfg.get("smtp_user", "")
@@ -279,77 +287,62 @@ def _send_email(subject: str, body: str):
         srv.ehlo(); srv.starttls(); srv.login(user, pwd)
         srv.sendmail(user, [to], msg.as_string())
         srv.quit()
-        log.info("Email elküldve: %s → %s", subject, to)
+        log.info("Email: %s → %s", subject, to)
     except Exception as e:
         log.error("Email hiba: %s", e)
 
 
-# ── DB HEALTH — írás + olvasás echo ──────────────────────────
+# ── DB HEALTH — SELECT NOW (olvasás echo, nincs audit_log szennyezés) ──
 
 async def _db_health_check() -> dict:
     """
-    Valódi DB health: nem csak port ping —
-    test sort ír, visszaolvassa, törli. Echo = oda-vissza adat.
+    Read-only DB health: SELECT NOW() bizonyítja a kapcsolatot és a DB válaszkészségét.
+    Nem ír audit_log-ba.
     """
     try:
         import psycopg2
-        from env_detect import get_db_url
-        url = get_db_url()
+        cfg = _load_smtp_config()  # .env-ből veszi a DB adatokat is
+        dsn = (
+            f"host=127.0.0.1 port={cfg.get('DB_PORT', 5433)} "
+            f"dbname={cfg.get('DB_NAME', 'crt')} "
+            f"user={cfg.get('DB_USER', 'crt_user')} "
+            f"password={cfg.get('DB_PASS', '')} "
+            f"connect_timeout=3"
+        )
         conn = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: psycopg2.connect(url, connect_timeout=3)
+            None, lambda: psycopg2.connect(dsn)
         )
         cur = conn.cursor()
-
-        # Write
-        ts = datetime.now().isoformat()
-        cur.execute(
-            "INSERT INTO audit_log (log_id, user_id, action, description, timestamp) "
-            "VALUES (%s, %s, %s, %s, NOW())",
-            ("daemon-ping", "0", "daemon_ping", f"health:{ts}")
-        )
-        conn.commit()
-
-        # Read back (echo)
-        cur.execute(
-            "SELECT description FROM audit_log WHERE action='daemon_ping' "
-            "ORDER BY timestamp DESC LIMIT 1"
-        )
+        cur.execute("SELECT NOW()")
         row = cur.fetchone()
-        echo_ok = row and "health:" in (row[0] or "")
-
-        # Cleanup
-        cur.execute("DELETE FROM audit_log WHERE action='daemon_ping'")
-        conn.commit()
         cur.close(); conn.close()
-
-        return {"ok": echo_ok, "echo": "write→read OK" if echo_ok else "echo fail"}
-
+        return {"ok": bool(row), "echo": str(row[0])[:20] if row else "no result"}
     except Exception as e:
         return {"ok": False, "echo": str(e)[:120]}
 
 
-# ── AI HEALTH — modell + mini inference ───────────────────────
+# ── AI HEALTH — modell lista + mini inference ─────────────────
 
 async def _ai_health_check() -> dict:
     """
-    Valódi AI health: modellek listája + 1 tokenes inference teszt.
-    Ha az inference nem válaszol 10s alatt → degraded.
+    Valódi AI health: model lista + 1-token inference.
+    Csak AI_DEEP_INTERVAL-onként hívódik (5 perc).
     """
     if not AIOHTTP:
         return {"ok": False, "reason": "aiohttp nincs"}
     try:
         async with aiohttp.ClientSession() as s:
-            # Modell lista
-            async with s.get("http://127.0.0.1:11434/api/tags",
-                              timeout=aiohttp.ClientTimeout(total=4)) as r:
+            async with s.get(
+                "http://127.0.0.1:11434/api/tags",
+                timeout=aiohttp.ClientTimeout(total=4)
+            ) as r:
                 if r.status != 200:
                     return {"ok": False, "reason": f"tags HTTP {r.status}"}
-                data  = await r.json()
+                data   = await r.json()
                 models = [m["name"] for m in data.get("models", [])]
                 if not models:
                     return {"ok": False, "reason": "nincs betöltött modell"}
 
-            # Mini inference — 1 token echo teszt
             payload = json.dumps({
                 "model":   models[0],
                 "prompt":  "1+1=",
@@ -360,11 +353,11 @@ async def _ai_health_check() -> dict:
                 "http://127.0.0.1:11434/api/generate",
                 data=payload,
                 headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=12),
+                timeout=aiohttp.ClientTimeout(total=15),
             ) as r2:
                 if r2.status != 200:
                     return {"ok": False, "reason": f"generate HTTP {r2.status}", "models": models}
-                resp = await r2.json()
+                resp   = await r2.json()
                 answer = (resp.get("response") or "").strip()
                 return {
                     "ok":     bool(answer),
@@ -374,7 +367,7 @@ async def _ai_health_check() -> dict:
                 }
 
     except asyncio.TimeoutError:
-        return {"ok": False, "reason": "timeout (>12s) — modell betölt?"}
+        return {"ok": False, "reason": "timeout (>15s) — modell betölt?"}
     except Exception as e:
         return {"ok": False, "reason": str(e)[:120]}
 
@@ -386,18 +379,33 @@ def _os_metrics() -> dict:
         return {"psutil": "nincs telepítve"}
     disk = psutil.disk_usage(str(ROOT))
     return {
-        "cpu_pct":    psutil.cpu_percent(interval=0.2),
-        "ram_pct":    psutil.virtual_memory().percent,
-        "ram_free_mb": psutil.virtual_memory().available // 1_048_576,
+        "cpu_pct":      psutil.cpu_percent(interval=0.2),
+        "ram_pct":      psutil.virtual_memory().percent,
+        "ram_free_mb":  psutil.virtual_memory().available // 1_048_576,
         "disk_free_gb": disk.free // 1_073_741_824,
-        "disk_pct":   disk.percent,
-        "uptime_s":   int(time.time() - psutil.boot_time()),
+        "disk_pct":     disk.percent,
+        "uptime_s":     int(time.time() - psutil.boot_time()),
     }
 
 
 # ── HTTP SZERVER (:8099) ──────────────────────────────────────
 
-async def handle_status(req):
+_CORS = {
+    "Access-Control-Allow-Origin":  "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+}
+
+
+def _json_resp(data: dict, status: int = 200) -> "web.Response":
+    return web.Response(
+        text=json.dumps(data, ensure_ascii=False, default=str),
+        content_type="application/json",
+        status=status,
+        headers=_CORS,
+    )
+
+
+async def handle_status(_req) -> "web.Response":
     data = {
         "daemon":     "ok",
         "time":       datetime.now().isoformat(),
@@ -407,79 +415,210 @@ async def handle_status(req):
             "down":     sum(1 for s in state.values() if s["status"] == "down"),
             "degraded": sum(1 for s in state.values() if s["status"] == "degraded"),
             "unknown":  sum(1 for s in state.values() if s["status"] == "unknown"),
-        }
+        },
+        "metrics": _os_metrics(),
     }
-    return web.Response(
-        text=json.dumps(data, ensure_ascii=False),
-        content_type="application/json"
-    )
+    return _json_resp(data)
 
 
-async def handle_metrics(req):
-    return web.Response(
-        text=json.dumps(_os_metrics(), ensure_ascii=False),
-        content_type="application/json"
-    )
+async def handle_metrics(_req) -> "web.Response":
+    return _json_resp(_os_metrics())
 
 
-async def handle_ui(req):
-    ok_count   = sum(1 for s in state.values() if s["status"] == "ok")
-    down_count = sum(1 for s in state.values() if s["status"] == "down")
-    total      = len(state)
-    color      = "#3ecf8e" if down_count == 0 else ("#f5a623" if down_count < 3 else "#e74c3c")
-
-    rows = ""
-    for s in state.values():
-        sc = {"ok": "#3ecf8e", "down": "#e74c3c", "degraded": "#f5a623"}.get(s["status"], "#888")
-        rows += (
-            f"<tr>"
-            f"<td>{s['label']}</td>"
-            f"<td><span style='color:{sc};font-weight:700'>{s['status'].upper()}</span></td>"
-            f"<td style='color:#888;font-size:.8em'>{s['type']}</td>"
-            f"<td style='color:#888;font-size:.75em'>{s.get('last_ok','–')[:19] if s.get('last_ok') else '–'}</td>"
-            f"<td style='color:#e74c3c;font-size:.75em'>{s.get('error','') or ''}</td>"
-            f"</tr>"
-        )
-
-    html = f"""<!DOCTYPE html><html lang="hu"><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="20">
-<title>CRT Daemon :8099</title>
-<style>
-  body{{font-family:'Segoe UI',sans-serif;background:#0d0d14;color:#e8e8f0;margin:0;padding:1.5rem;}}
-  h1{{font-size:1.1rem;margin-bottom:1rem;}}
-  .dot{{display:inline-block;width:12px;height:12px;border-radius:50%;background:{color};margin-right:.5rem;}}
-  table{{border-collapse:collapse;width:100%;font-size:.85rem;}}
-  th{{text-align:left;padding:.4rem .6rem;color:#9898b8;border-bottom:1px solid #2a2a3e;}}
-  td{{padding:.35rem .6rem;border-bottom:1px solid #1a1a2e;}}
-  .meta{{font-size:.75rem;color:#5a5a7a;margin-top:1rem;}}
-</style></head><body>
-<h1><span class="dot"></span>CRT Daemon — {ok_count}/{total} OK &nbsp;·&nbsp; {datetime.now().strftime('%H:%M:%S')}</h1>
-<table><thead><tr><th>Komponens</th><th>Státusz</th><th>Típus</th><th>Utolsó OK</th><th>Hiba</th></tr></thead>
-<tbody>{rows}</tbody></table>
-<div class="meta">Frissítés: 20s &nbsp;·&nbsp; CRT Daemon :8099 &nbsp;·&nbsp;
-<a href="/status" style="color:#7c6af7">JSON</a> &nbsp;·&nbsp;
-<a href="/metrics" style="color:#7c6af7">OS metrikák</a> &nbsp;·&nbsp;
-<a href="http://localhost:8000/ui/kezelőpult.html" style="color:#7c6af7">CRT →</a></div>
-</body></html>"""
-    return web.Response(text=html, content_type="text/html")
+async def handle_events(req) -> "web.StreamResponse":
+    """
+    Server-Sent Events — a szerver tolja az adatot 5s-ként.
+    Bármelyik kliens feliratkozhat: daemon saját dashboardja,
+    CRT kezelőpult widget, bare metal monitoring tool.
+    """
+    resp = web.StreamResponse(headers={
+        "Content-Type":                "text/event-stream",
+        "Cache-Control":               "no-cache",
+        "X-Accel-Buffering":           "no",
+        "Access-Control-Allow-Origin": "*",
+    })
+    await resp.prepare(req)
+    try:
+        while True:
+            payload = {
+                "time": datetime.now().isoformat(),
+                "components": list(state.values()),
+                "summary": {
+                    "ok":       sum(1 for s in state.values() if s["status"] == "ok"),
+                    "down":     sum(1 for s in state.values() if s["status"] == "down"),
+                    "degraded": sum(1 for s in state.values() if s["status"] == "degraded"),
+                },
+                "metrics": _os_metrics(),
+            }
+            await resp.write(
+                f"data: {json.dumps(payload, default=str)}\n\n".encode()
+            )
+            await asyncio.sleep(5)
+    except (asyncio.CancelledError, ConnectionResetError):
+        pass
+    return resp
 
 
-async def handle_restart(req):
-    cid = req.match_info.get("component_id")
+async def handle_restart(req) -> "web.Response":
+    cid  = req.match_info.get("component_id")
     comp = next((c for c in COMPONENTS if c["id"] == cid), None)
     if not comp:
-        return web.Response(text=json.dumps({"error": "nem található"}),
-                            content_type="application/json", status=404)
+        return _json_resp({"error": "nem található"}, 404)
     await _on_down(comp)
-    return web.Response(text=json.dumps({"status": "restart kísérlet", "id": cid}),
-                        content_type="application/json")
+    return _json_resp({"status": "restart kísérlet indítva", "id": cid})
+
+
+async def handle_ui(_req) -> "web.Response":
+    """Dashboard HTML — SSE alapú, nincs oldal-újratöltés."""
+    return web.Response(
+        text=_DASHBOARD_HTML,
+        content_type="text/html",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+# ── DASHBOARD HTML ────────────────────────────────────────────
+# SSE EventSource: szerver tolja az adatot 5s-ként → JS frissíti a DOM-ot
+# Restart gomb: POST /restart/<id> → watchdog újraindítja a folyamatot
+
+_DASHBOARD_HTML = r"""<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>CRT Daemon :8099</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a12;color:#e0e0f0;min-height:100vh;padding:1rem 1.25rem}
+header{display:flex;align-items:center;gap:.75rem;padding:.5rem 0 .9rem;border-bottom:1px solid #1e1e30;margin-bottom:.9rem}
+.pulse{width:12px;height:12px;border-radius:50%;background:#3ecf8e;flex-shrink:0;transition:background .4s}
+.pulse.down{background:#e74c3c;animation:blink 1s infinite}
+.pulse.warn{background:#f5a623}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+h1{font-size:1rem;font-weight:600;flex:1;letter-spacing:.01em}
+h1 span{color:#3a3a6a}
+#clock{font-size:.8rem;color:#5a5a7a;font-variant-numeric:tabular-nums}
+#summary-bar{font-size:.82rem;color:#9898b8}
+#metrics-bar{display:flex;gap:1.75rem;padding:.45rem 0 .9rem;font-size:.77rem;color:#6868a0;border-bottom:1px solid #1a1a2e;margin-bottom:.9rem;flex-wrap:wrap}
+.mi span{color:#c0c0e0;font-weight:600;margin-left:.25rem}
+.sections{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+@media(max-width:580px){.sections{grid-template-columns:1fr}}
+.section{background:#0e0e1c;border:1px solid #1e1e30;border-radius:8px;padding:.7rem .8rem}
+.section h2{font-size:.65rem;letter-spacing:.12em;color:#4a4a6a;text-transform:uppercase;margin-bottom:.55rem}
+.cr{display:flex;align-items:center;gap:.45rem;padding:.28rem 0;border-bottom:1px solid #131320;font-size:.8rem}
+.cr:last-child{border-bottom:none}
+.sd{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ok{background:#3ecf8e}
+.dn{background:#e74c3c;animation:blink 1s infinite}
+.dg{background:#f5a623}
+.un{background:#383850}
+.lbl{flex:1;font-weight:500}
+.err{font-size:.68rem;color:#e05050;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tms{font-size:.63rem;color:#363654}
+.rb{font-size:.62rem;padding:.12rem .35rem;background:#141428;border:1px solid #2a2a44;color:#7c6af7;border-radius:3px;cursor:pointer;flex-shrink:0}
+.rb:hover{background:#222240}
+footer{margin-top:1.2rem;font-size:.7rem;color:#333352;text-align:center}
+footer a{color:#5050c0;text-decoration:none;margin:0 .35rem}
+#lu{font-size:.68rem;color:#2e2e50;margin-left:1rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="pulse" id="mp"></div>
+  <h1>CRT Daemon <span>:8099</span></h1>
+  <span id="summary-bar">csatlakozás…</span>
+  &nbsp;·&nbsp;
+  <span id="clock"></span>
+</header>
+
+<div id="metrics-bar">
+  <div class="mi">CPU<span id="m-cpu">–</span>%</div>
+  <div class="mi">RAM<span id="m-ram">–</span>%</div>
+  <div class="mi">Disk<span id="m-disk">–</span> GB szabad</div>
+  <div class="mi">Uptime<span id="m-up">–</span></div>
+</div>
+
+<div class="sections">
+  <div class="section"><h2>Process</h2><div id="g-process"></div></div>
+  <div class="section"><h2>Router</h2><div id="g-router"></div></div>
+  <div class="section"><h2>Motor</h2><div id="g-motor"></div></div>
+  <div class="section"><h2>Stats</h2><div id="g-stats"></div></div>
+</div>
+
+<footer>
+  CRT Daemon
+  <a href="/status">JSON</a>
+  <a href="/metrics">OS</a>
+  <a href="/events">SSE</a>
+  <a href="http://localhost:8000/ui/kezelőpult.html">CRT →</a>
+  <span id="lu"></span>
+</footer>
+
+<script>
+const G = {process:'g-process', router:'g-router', motor:'g-motor', stats:'g-stats'};
+
+function fmtUp(s){
+  if(s<60) return s+'s';
+  if(s<3600) return Math.floor(s/60)+'p';
+  if(s<86400) return Math.floor(s/3600)+'ó '+Math.floor((s%3600)/60)+'p';
+  return Math.floor(s/86400)+'n '+Math.floor((s%86400)/3600)+'ó';
+}
+function fmtT(iso){ return iso ? iso.slice(11,19) : '–'; }
+
+function render(components){
+  const byType={process:[],router:[],motor:[],stats:[]};
+  for(const c of components) if(byType[c.type]) byType[c.type].push(c);
+  for(const [t,gid] of Object.entries(G)){
+    const el=document.getElementById(gid); if(!el) continue;
+    el.innerHTML=byType[t].map(c=>{
+      const dc=c.status==='ok'?'ok':c.status==='down'?'dn':c.status==='degraded'?'dg':'un';
+      const info=c.error
+        ?`<span class="err" title="${c.error.replace(/"/g,'&quot;')}">${c.error}</span>`
+        :`<span class="tms">${fmtT(c.last_ok)}</span>`;
+      const btn=c.type==='process'
+        ?`<button class="rb" onclick="rst('${c.id}')">↺</button>`:'';
+      return `<div class="cr"><div class="sd ${dc}"></div><span class="lbl">${c.label}</span>${info}${btn}</div>`;
+    }).join('');
+  }
+}
+
+function upd(data){
+  const s=data.summary, tot=data.components.length;
+  const mp=document.getElementById('mp');
+  mp.className=s.down>0?'pulse down':s.degraded>0?'pulse warn':'pulse';
+  document.getElementById('summary-bar').textContent=
+    `${s.ok}/${tot} OK`+(s.down?`  ✗ ${s.down}`:'')+(s.degraded?`  ⚠ ${s.degraded}`:'');
+  const m=data.metrics||{};
+  document.getElementById('m-cpu').textContent  = m.cpu_pct!=null?m.cpu_pct.toFixed(0):'–';
+  document.getElementById('m-ram').textContent  = m.ram_pct!=null?m.ram_pct.toFixed(0):'–';
+  document.getElementById('m-disk').textContent = m.disk_free_gb??'–';
+  document.getElementById('m-up').textContent   = m.uptime_s!=null?fmtUp(m.uptime_s):'–';
+  render(data.components);
+  document.getElementById('lu').textContent='frissítve '+fmtT(data.time);
+}
+
+async function rst(cid){
+  if(!confirm(`Restart: ${cid}?`)) return;
+  await fetch(`/restart/${cid}`,{method:'POST'});
+}
+
+function sse(){
+  const es=new EventSource('/events');
+  es.onmessage=e=>{ try{upd(JSON.parse(e.data));}catch(_){} };
+  es.onerror=()=>{ es.close(); setTimeout(sse,5000); };
+}
+
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('hu'); },1000);
+sse();
+</script>
+</body>
+</html>"""
 
 
 # ── HEARTBEAT EMAIL (naponta) ─────────────────────────────────
 
 async def heartbeat_loop():
     """24 óránként státusz email."""
-    await asyncio.sleep(60)   # indulás után 1 perccel az első
+    await asyncio.sleep(60)
     while True:
         ok  = sum(1 for s in state.values() if s["status"] == "ok")
         dn  = sum(1 for s in state.values() if s["status"] == "down")
@@ -488,15 +627,23 @@ async def heartbeat_loop():
             f"CRT Daemon napi jelentés — {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
             f"Komponensek: {ok}/{len(state)} OK, {dn} leállott\n"
             f"CPU: {met.get('cpu_pct','?')}%  RAM: {met.get('ram_pct','?')}%  "
-            f"Disk szabad: {met.get('disk_free_gb','?')} GB\n\n"
+            f"Disk szabad: {met.get('disk_free_gb','?')} GB\n"
+            f"Uptime: {fmtUptime(met.get('uptime_s', 0))}\n\n"
         )
         for s in state.values():
             if s["status"] != "ok":
-                body += f"  ✗ {s['label']}: {s.get('error','?')}\n"
+                body += f"  ! {s['label']}: {s.get('error', '?')}\n"
         await asyncio.get_event_loop().run_in_executor(
             None, _send_email, "Napi státusz", body
         )
-        await asyncio.sleep(86400)   # 24 óra
+        await asyncio.sleep(86400)
+
+
+def fmtUptime(s: int) -> str:
+    if s < 60:    return f"{s}s"
+    if s < 3600:  return f"{s//60}p"
+    if s < 86400: return f"{s//3600}ó {(s%3600)//60}p"
+    return f"{s//86400}n {(s%86400)//3600}ó"
 
 
 # ── MAIN ──────────────────────────────────────────────────────
@@ -504,24 +651,26 @@ async def heartbeat_loop():
 async def main():
     log.info("CRT Daemon indul — port %d", DAEMON_PORT)
 
-    # HTTP szerver
     if AIOHTTP:
         app = web.Application()
-        app.router.add_get("/",                  handle_ui)
-        app.router.add_get("/ui",                handle_ui)
-        app.router.add_get("/status",            handle_status)
-        app.router.add_get("/metrics",           handle_metrics)
+        app.router.add_get("/",                        handle_ui)
+        app.router.add_get("/ui",                      handle_ui)
+        app.router.add_get("/status",                  handle_status)
+        app.router.add_get("/metrics",                 handle_metrics)
+        app.router.add_get("/events",                  handle_events)
         app.router.add_post("/restart/{component_id}", handle_restart)
 
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", DAEMON_PORT)
         await site.start()
-        log.info("HTTP szerver: http://localhost:%d", DAEMON_PORT)
+        log.info(
+            "HTTP: http://localhost:%d  SSE: http://localhost:%d/events",
+            DAEMON_PORT, DAEMON_PORT
+        )
     else:
-        log.warning("aiohttp nincs — HTTP szerver kikapcsolva (pip install aiohttp)")
+        log.warning("aiohttp nincs — HTTP kikapcsolva (pip install aiohttp)")
 
-    # Háttér taskok
     asyncio.create_task(watchdog_loop())
     asyncio.create_task(heartbeat_loop())
 

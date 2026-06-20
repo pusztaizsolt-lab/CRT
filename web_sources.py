@@ -485,6 +485,391 @@ async def list_web_prices(
     return {"prices": [_row2dict(r) for r in rows], "count": len(rows)}
 
 
+# ── WEB PRICE MATCHING → GOLDEN PIPELINE ─────────────────────
+#
+# Attention layer wiring:
+# web_prices.matched = true  →  golden_examples (LoRA tanítóadat)
+#
+# Lánc: scraper/feltöltés → web_prices (raw) → PATCH /match →
+#        web_prices.matched=true + golden_examples INSERT → LoRA export
+
+@router.patch("/prices/{price_id}/match")
+async def match_web_price(
+    price_id: int,
+    body:     dict,
+    payload:  dict = Depends(require_auth),
+):
+    """
+    Manuális vagy AI-vezérelt egyeztetés: web_price → cikktörzs tétel.
+
+    Body: { "item_id": "<uuid>", "confidence": 0.0–1.0 }
+
+    Ha confidence >= 0.75: automatikusan golden_example-t is létrehoz.
+    Ez zárja le az attention loop-ot:
+      web scraping → raw_name → egyeztetés → golden tanítóadat → LoRA
+    """
+    item_id    = (body.get("item_id") or "").strip()
+    confidence = float(body.get("confidence", 1.0))
+
+    if not item_id:
+        raise HTTPException(400, "item_id kötelező")
+    if not (0.0 <= confidence <= 1.0):
+        raise HTTPException(400, "confidence: 0.0–1.0")
+
+    with engine.connect() as conn:
+        # Lekérjük a web_prices sort
+        wp = conn.execute(text(
+            "SELECT id, source_id, raw_name, raw_price, currency, unit, manufacturer "
+            "FROM web_prices WHERE id = :id"
+        ), {"id": price_id}).fetchone()
+        if not wp:
+            raise HTTPException(404, "web_price nem található")
+
+        # Lekérjük a cikktörzs tétel clean nevét
+        prod = conn.execute(text(
+            "SELECT item_id, name, unit FROM products WHERE item_id = :id AND active = true"
+        ), {"id": item_id}).fetchone()
+        if not prod:
+            prod = conn.execute(text(
+                "SELECT item_id, name, unit FROM activities WHERE item_id = :id AND active = true"
+            ), {"id": item_id}).fetchone()
+        if not prod:
+            raise HTTPException(404, f"Cikktörzs tétel nem található: {item_id}")
+
+        clean_name = prod[1]
+        item_unit  = prod[2]
+
+    try:
+        with engine.begin() as conn:
+            # 1. web_prices frissítése
+            conn.execute(text(
+                "UPDATE web_prices "
+                "SET matched = true, item_id = :iid, match_confidence = :conf "
+                "WHERE id = :pid"
+            ), {"iid": item_id, "conf": confidence, "pid": price_id})
+
+            golden_id = None
+
+            # 2. Ha elég magas a konfidencia → golden_examples automatikus feltöltés
+            if confidence >= 0.75:
+                mfr = wp[6] or None
+                row = conn.execute(text(
+                    "INSERT INTO golden_examples "
+                    "(item_id, raw_text, clean_name, manufacturer, unit, source, created_by, created_at) "
+                    "VALUES (:iid, :raw, :name, :mfr, :unit, 'web_price_match', :by, NOW()) "
+                    "RETURNING id"
+                ), {
+                    "iid":  item_id,
+                    "raw":  (wp[2] or "")[:500],
+                    "name": clean_name,
+                    "mfr":  mfr,
+                    "unit": item_unit,
+                    "by":   payload.get("username", "system"),
+                }).fetchone()
+                golden_id = row[0]
+
+        log.info(
+            "web_price #%d → item_id=%s conf=%.2f golden=%s user=%s",
+            price_id, item_id, confidence,
+            golden_id or "skip (<0.75)", payload["username"]
+        )
+        return {
+            "status":     "ok",
+            "price_id":   price_id,
+            "item_id":    item_id,
+            "confidence": confidence,
+            "golden_id":  golden_id,
+            "golden_created": golden_id is not None,
+        }
+
+    except Exception as e:
+        raise HTTPException(500, f"Match hiba: {e}")
+
+
+@router.post("/prices/match-batch")
+async def match_web_prices_batch(
+    body:    dict,
+    payload: dict = Depends(require_auth),
+):
+    """
+    Batch egyeztetés: [{"price_id": N, "item_id": "...", "confidence": 0.9}, ...]
+    Minden elemet feldolgoz, minden confidence >= 0.75 sor golden_example lesz.
+    """
+    items = body.get("matches", [])
+    if not items:
+        return {"matched": 0, "golden_created": 0}
+
+    matched_count = 0
+    golden_count  = 0
+
+    for m in items:
+        try:
+            pid  = int(m["price_id"])
+            iid  = str(m["item_id"]).strip()
+            conf = float(m.get("confidence", 1.0))
+            if not iid or not (0.0 <= conf <= 1.0):
+                continue
+
+            with engine.connect() as conn:
+                wp = conn.execute(text(
+                    "SELECT raw_name, manufacturer, unit FROM web_prices WHERE id = :id"
+                ), {"id": pid}).fetchone()
+                if not wp:
+                    continue
+                prod = conn.execute(text(
+                    "SELECT name, unit FROM products WHERE item_id = :id AND active = true"
+                ), {"id": iid}).fetchone()
+                if not prod:
+                    prod = conn.execute(text(
+                        "SELECT name, unit FROM activities WHERE item_id = :id AND active = true"
+                    ), {"id": iid}).fetchone()
+                if not prod:
+                    continue
+                clean_name = prod[0]
+                unit       = prod[1]
+
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "UPDATE web_prices SET matched=true, item_id=:iid, match_confidence=:conf WHERE id=:pid"
+                ), {"iid": iid, "conf": conf, "pid": pid})
+                matched_count += 1
+
+                if conf >= 0.75:
+                    conn.execute(text(
+                        "INSERT INTO golden_examples "
+                        "(item_id, raw_text, clean_name, manufacturer, unit, source, created_by, created_at) "
+                        "VALUES (:iid, :raw, :name, :mfr, :unit, 'web_price_match', :by, NOW())"
+                    ), {
+                        "iid":  iid,
+                        "raw":  (wp[0] or "")[:500],
+                        "name": clean_name,
+                        "mfr":  wp[1],
+                        "unit": unit,
+                        "by":   payload.get("username", "system"),
+                    })
+                    golden_count += 1
+
+        except Exception as e:
+            log.warning("Batch match hiba (price_id=%s): %s", m.get("price_id"), e)
+            continue
+
+    log.info("Batch match: %d egyeztetve, %d golden létrehozva (%s)",
+             matched_count, golden_count, payload["username"])
+    return {"matched": matched_count, "golden_created": golden_count}
+
+
+# ── AI TANÍTÁS PIPE ──────────────────────────────────────────
+#
+# POST /web/prices/ai-suggest  — Claude (vagy Ollama) javasol egyezést
+# POST /web/prices/ai-commit   — felhasználó által jóváhagyott javaslatok rögzítése
+#
+# Ha Claude API nincs vagy kiesik → csendesen Ollama öntanulás módra vált
+# confidence >= 0.75 → automatikusan golden_example is keletkezik
+
+_MATCH_PROMPT = """Magyar villamossági és építőipari szállítói árlisták egyeztetése termékkatalógussal.
+
+TERMÉKKATALÓGUS:
+{catalog}
+
+EGYEZTETENDŐ SZÁLLÍTÓI TÉTELEK:
+{prices}
+
+Minden szállítói tételhez add meg a legjobb katalógusbeli egyezést.
+- Ha nincs megfelelő tétel (confidence < 0.60): item_id = null
+- Ha bizonytalan (0.60–0.84): adj rövid, magyarul megfogalmazott kérdést (question mező)
+- Ha biztos (>= 0.85): question = null
+
+Válasz KIZÁRÓLAG JSON array, semmi magyarázat:
+[
+  {{"price_id": 1, "item_id": "uuid-vagy-null", "confidence": 0.95, "question": null}},
+  ...
+]"""
+
+
+@router.post("/prices/ai-suggest")
+async def ai_suggest_matches(body: dict, payload: dict = Depends(require_auth)):
+    """
+    Claude Haiku vagy Ollama javaslatot ad unmatched web_prices-ekhez.
+    Ha Claude API nem elérhető: csendesen Ollama öntanulás módra vált (nincs hiba, nincs villogás).
+    Nem commitál — a /prices/ai-commit végpont rögzíti jóváhagyás után.
+    """
+    limit = min(int(body.get("limit", 20)), 50)
+
+    with engine.connect() as conn:
+        price_rows = conn.execute(text(
+            "SELECT id, raw_name, raw_price, currency "
+            "FROM web_prices WHERE (matched IS NULL OR matched = false) "
+            "AND raw_name IS NOT NULL AND raw_name != '' "
+            "ORDER BY scraped_at DESC LIMIT :limit"
+        ), {"limit": limit}).fetchall()
+
+        if not price_rows:
+            return {"suggestions": [], "motor": "none", "reason": "Nincs egyeztetetlen ár"}
+
+        prod_rows = conn.execute(text(
+            "SELECT item_id, name, unit FROM products WHERE active = true ORDER BY name LIMIT 150"
+        )).fetchall()
+        act_rows = conn.execute(text(
+            "SELECT item_id, name, unit FROM activities WHERE active = true ORDER BY name LIMIT 80"
+        )).fetchall()
+
+        cfg_rows = conn.execute(text(
+            "SELECT key, value FROM system_config "
+            "WHERE key IN ('claude_api_key','ollama_url','ollama_model')"
+        )).fetchall()
+        cfg = {r[0]: r[1] for r in cfg_rows}
+
+    claude_key   = cfg.get("claude_api_key") or ""
+    ollama_url   = cfg.get("ollama_url") or "http://localhost:11434"
+    ollama_model = cfg.get("ollama_model") or "llama3:8b"
+
+    catalog = [{"item_id": r[0], "name": r[1], "unit": r[2]}
+               for r in list(prod_rows) + list(act_rows)]
+    prices  = [{"price_id": r[0], "raw_name": r[1],
+                "raw_price": float(r[2] or 0), "currency": r[3]}
+               for r in price_rows]
+
+    catalog_text = "\n".join(f"{c['item_id']} | {c['name']} [{c['unit']}]" for c in catalog)
+    prices_text  = "\n".join(
+        f"{p['price_id']}. {p['raw_name']} ({p['raw_price']} {p['currency']})"
+        for p in prices
+    )
+    prompt = _MATCH_PROMPT.format(catalog=catalog_text, prices=prices_text)
+
+    motor, suggestions = "none", []
+
+    # ── 1. Claude Haiku ──────────────────────────────────────────
+    if claude_key.strip():
+        try:
+            from anthropic import Anthropic as _Ant
+            import json as _j, re as _re
+            resp = _Ant(api_key=claude_key).messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            m = _re.search(r'\[.*\]', resp.content[0].text, _re.DOTALL)
+            if m:
+                suggestions = _j.loads(m.group(0))
+                motor = "claude"
+        except Exception as e:
+            log.info("Claude suggest nem elérhető (%s) — Ollama öntanulás", e)
+
+    # ── 2. Ollama fallback — csendesen, nem hiba ─────────────────
+    if not suggestions:
+        try:
+            import httpx as _hx, json as _j, re as _re
+            r = _hx.post(
+                f"{ollama_url}/api/generate",
+                json={"model": ollama_model, "prompt": prompt, "stream": False,
+                      "options": {"num_predict": 2048, "temperature": 0.1}},
+                timeout=90.0,
+            )
+            if r.status_code == 200:
+                m = _re.search(r'\[.*\]', r.json().get("response", ""), _re.DOTALL)
+                if m:
+                    suggestions = _j.loads(m.group(0))
+                    motor = "ollama"
+        except Exception as e:
+            log.warning("Ollama suggest hiba: %s", e)
+
+    catalog_map = {c["item_id"]: c for c in catalog}
+    price_map   = {p["price_id"]: p for p in prices}
+
+    result = []
+    for s in suggestions:
+        pid  = s.get("price_id")
+        iid  = s.get("item_id")
+        conf = min(max(float(s.get("confidence", 0)), 0.0), 1.0)
+        cat  = catalog_map.get(iid or "")
+        result.append({
+            "price_id":       pid,
+            "raw_name":       price_map.get(pid, {}).get("raw_name", ""),
+            "raw_price":      price_map.get(pid, {}).get("raw_price", 0),
+            "item_id":        iid,
+            "suggested_name": cat["name"] if cat else None,
+            "suggested_unit": cat["unit"] if cat else None,
+            "confidence":     conf,
+            "question":       s.get("question"),
+            "auto_ok":        conf >= 0.90 and not s.get("question") and iid,
+        })
+
+    return {
+        "suggestions":    result,
+        "motor":          motor,
+        "self_learn":     motor == "ollama",
+        "total":          len(result),
+        "unmatched_total": len(price_rows),
+    }
+
+
+@router.post("/prices/ai-commit")
+async def ai_commit_matches(body: dict, payload: dict = Depends(require_auth)):
+    """
+    Felhasználó által jóváhagyott javaslatok rögzítése.
+    approvals: [{price_id, item_id, confidence, accepted}]
+    accepted=true  → web_prices.matched=true + golden_example (ha conf>=0.75)
+    accepted=false → kihagyás
+    """
+    approvals = body.get("approvals", [])
+    committed = golden = skipped = 0
+
+    for a in approvals:
+        if not a.get("accepted"):
+            skipped += 1
+            continue
+        pid  = int(a["price_id"])
+        iid  = (a.get("item_id") or "").strip()
+        conf = min(max(float(a.get("confidence", 1.0)), 0.0), 1.0)
+        if not iid:
+            skipped += 1
+            continue
+        try:
+            with engine.connect() as conn:
+                wp = conn.execute(text(
+                    "SELECT raw_name, manufacturer, unit FROM web_prices WHERE id = :id"
+                ), {"id": pid}).fetchone()
+                if not wp:
+                    continue
+                prod = (
+                    conn.execute(text(
+                        "SELECT name, unit FROM products WHERE item_id=:id AND active=true"
+                    ), {"id": iid}).fetchone() or
+                    conn.execute(text(
+                        "SELECT name, unit FROM activities WHERE item_id=:id AND active=true"
+                    ), {"id": iid}).fetchone()
+                )
+                if not prod:
+                    continue
+
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "UPDATE web_prices SET matched=true, item_id=:iid, "
+                    "match_confidence=:conf WHERE id=:pid"
+                ), {"iid": iid, "conf": conf, "pid": pid})
+                committed += 1
+
+                if conf >= 0.75:
+                    conn.execute(text(
+                        "INSERT INTO golden_examples "
+                        "(item_id, raw_text, clean_name, manufacturer, unit, "
+                        " source, created_by, created_at) "
+                        "VALUES (:iid, :raw, :name, :mfr, :unit, 'ai_teach', :by, NOW())"
+                    ), {
+                        "iid":  iid, "raw": (wp[0] or "")[:500],
+                        "name": prod[0], "mfr": wp[1], "unit": prod[1],
+                        "by":   payload.get("username", "system"),
+                    })
+                    golden += 1
+
+        except Exception as e:
+            log.warning("ai-commit hiba (pid=%s): %s", a.get("price_id"), e)
+
+    log.info("AI commit: %d egyeztetve, %d golden, %d kihagyva (%s)",
+             committed, golden, skipped, payload["username"])
+    return {"committed": committed, "golden_created": golden, "skipped": skipped}
+
+
 # ── DOKUMENTUM FELTÖLTÉS (PUSH csatorna) ──────────────────────
 
 ALLOWED_EXT = {".xlsx", ".xls", ".xlsm", ".pdf", ".docx", ".doc"}
