@@ -103,12 +103,11 @@ async def scrape(headless: bool = True) -> dict:
 
             for p in products:
                 save_price(
-                    source_id     = source_id,
-                    raw_name      = f"[Govill] {p['name']}",
-                    raw_price     = p["price"],
-                    unit          = "db",
-                    supplier_code = p.get("sku"),
-                    url           = p.get("url"),
+                    source_id = source_id,
+                    raw_name  = f"[Govill] {p['name']}",
+                    raw_price = p["price"],
+                    unit      = "db",
+                    url       = p.get("url"),
                 )
                 saved += 1
 

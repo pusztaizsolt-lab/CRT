@@ -4,13 +4,15 @@ Nagykereskedői URL-ek, login adatok, Playwright scriptek kezelése
 prefix: /web
 Függőségek: auth.require_auth · require_admin
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from typing import Optional
 import logging
 import os
+import tempfile
+import shutil
 
 from auth import require_auth, require_admin
 from env_detect import get_db_url, get_encrypt_key
@@ -481,3 +483,72 @@ async def list_web_prices(
         ), params).fetchall()
 
     return {"prices": [_row2dict(r) for r in rows], "count": len(rows)}
+
+
+# ── DOKUMENTUM FELTÖLTÉS (PUSH csatorna) ──────────────────────
+
+ALLOWED_EXT = {".xlsx", ".xls", ".xlsm", ".pdf", ".docx", ".doc"}
+
+@router.post("/upload")
+async def upload_price_list(
+    file:      UploadFile = File(...),
+    source_id: Optional[int] = Form(None),
+    payload:   dict = Depends(require_auth)
+):
+    """
+    PUSH csatorna: szállítói Excel/PDF/Word árlista feltöltés.
+    Az AI (llama3:8b) kinyeri a termékeket és árakat → web_prices tábla.
+    """
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from scrapers.ai_extractor import extract_from_file
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXT:
+        raise HTTPException(400, f"Nem támogatott formátum: {ext}. Elfogadott: {', '.join(sorted(ALLOWED_EXT))}")
+
+    # Ideiglenes fájl mentése
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    try:
+        log.info("Dokumentum feltöltés: %s (%s) user=%s", file.filename, ext, payload["username"])
+        products = extract_from_file(tmp_path)
+    except Exception as e:
+        os.unlink(tmp_path)
+        raise HTTPException(500, f"Kinyerési hiba: {e}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+    if not products:
+        return {"status": "ok", "saved": 0, "message": "Nem található termék a dokumentumban"}
+
+    # Forrás: ha nincs megadva, létrehozunk egyet a fájl neve alapján
+    if source_id is None:
+        with engine.begin() as conn:
+            row = conn.execute(text(
+                "INSERT INTO web_sources (name, url, source_type, status, created_at) "
+                "VALUES (:n, :u, 'document', 'reachable', NOW()) RETURNING id"
+            ), {"n": file.filename[:200], "u": f"file://{file.filename}"}).fetchone()
+            source_id = row[0]
+
+    saved = 0
+    with engine.begin() as conn:
+        for p in products:
+            conn.execute(text(
+                "INSERT INTO web_prices "
+                "(source_id, raw_name, raw_price, currency, unit, scraped_at) "
+                "VALUES (:sid, :name, :price, 'HUF', 'db', NOW())"
+            ), {"sid": source_id, "name": f"[DOC] {p['name']}"[:500], "price": p["price"]})
+            saved += 1
+
+    log.info("Dokumentum feldolgozva: %s → %d ár mentve (source_id=%d)", file.filename, saved, source_id)
+    return {
+        "status":    "ok",
+        "filename":  file.filename,
+        "source_id": source_id,
+        "saved":     saved,
+        "products":  products[:20],
+    }

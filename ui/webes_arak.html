@@ -141,6 +141,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color
 
 /* ── TYPE ICONS ── */
 .type-icon{font-size:1rem;}
+
+/* ── FELTÖLTŐ DROP-ZONE ── */
+.drop-zone{border:2px dashed var(--border-hi);border-radius:10px;padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;color:var(--text-muted);font-size:.85rem;margin-bottom:1rem;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(124,106,247,.06);color:var(--text);}
+.drop-zone .dz-icon{font-size:2rem;margin-bottom:.5rem;}
+.drop-zone small{display:block;font-size:.72rem;color:var(--text-muted);margin-top:.4rem;}
+.upload-result{margin-top:.8rem;font-size:.82rem;padding:.6rem .8rem;border-radius:7px;display:none;}
+.upload-result.ok {background:rgba(62,207,142,.1);border:1px solid var(--done);color:var(--done);}
+.upload-result.err{background:rgba(231,76,60,.1);border:1px solid var(--err);color:var(--err);}
+.upload-result.run{background:rgba(245,166,35,.08);border:1px solid var(--warn);color:var(--warn);}
 </style>
 </head>
 <body>
@@ -162,7 +172,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color
   <div class="sidebar">
     <div class="sidebar-head">
       <h2>Adatforrások</h2>
-      <button class="btn btn-sm btn-primary" onclick="openAddSource()">+ Hozzáad</button>
+      <div style="display:flex;gap:.4rem;">
+        <button class="btn btn-sm" onclick="openUpload()" title="Szállítói Excel/PDF/Word feltöltés">⬆ Árlista</button>
+        <button class="btn btn-sm btn-primary" onclick="openAddSource()">+ Hozzáad</button>
+      </div>
     </div>
     <div class="sources-list" id="sourcesList">
       <div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.82rem;">Betöltés…</div>
@@ -208,6 +221,37 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color
     <div class="modal-btns">
       <button class="btn" onclick="closeModal('modalSource')">Mégse</button>
       <button class="btn btn-primary" onclick="saveSource()">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: ÁRLISTA FELTÖLTÉS (PUSH csatorna) ── -->
+<div class="overlay" id="modalUpload">
+  <div class="modal">
+    <h3>⬆ Szállítói árlista feltöltés</h3>
+    <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:1rem;">
+      Az AI automatikusan kinyeri a termékeket és árakat.<br>
+      Támogatott: <strong>Excel (.xlsx), PDF, Word (.docx)</strong>
+    </div>
+    <div class="drop-zone" id="dropZone"
+         onclick="document.getElementById('uploadInput').click()"
+         ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event)">
+      <div class="dz-icon">📄</div>
+      <div id="dropLabel">Húzd ide a fájlt, vagy kattints a kiválasztáshoz</div>
+      <small>Excel · PDF · Word – max. 20 MB</small>
+    </div>
+    <input type="file" id="uploadInput" accept=".xlsx,.xls,.xlsm,.pdf,.docx,.doc"
+           style="display:none;" onchange="fileSelected(this)">
+    <div class="field">
+      <label>Forrás (opcionális – ha üresen hagyod, új jön létre)</label>
+      <select id="uploadSourceId">
+        <option value="">— Automatikus (fájlnév alapján) —</option>
+      </select>
+    </div>
+    <div class="upload-result" id="uploadResult"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalUpload')">Mégse</button>
+      <button class="btn btn-primary" id="uploadBtn" onclick="doUpload()" disabled>Feltölt &amp; AI feldolgoz</button>
     </div>
   </div>
 </div>
@@ -752,6 +796,98 @@ async function runScript(scriptId, sourceId){
     resultEl.textContent = `✗ Kapcsolati hiba: ${e.message}`;
   } finally {
     btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+// ── ÁRLISTA FELTÖLTÉS (PUSH csatorna) ────────────────────────
+let _uploadFile = null;
+
+function openUpload(){
+  _uploadFile = null;
+  document.getElementById('dropLabel').textContent = 'Húzd ide a fájlt, vagy kattints a kiválasztáshoz';
+  document.getElementById('dropZone').style.borderColor = '';
+  document.getElementById('uploadInput').value = '';
+  document.getElementById('uploadResult').style.display = 'none';
+  document.getElementById('uploadBtn').disabled = true;
+
+  // Feltölti a source select-et
+  const sel = document.getElementById('uploadSourceId');
+  sel.innerHTML = '<option value="">— Automatikus (fájlnév alapján) —</option>';
+  _sources.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+
+  document.getElementById('modalUpload').classList.add('open');
+}
+
+function dzOver(e){ e.preventDefault(); document.getElementById('dropZone').classList.add('over'); }
+function dzLeave(e){ document.getElementById('dropZone').classList.remove('over'); }
+function dzDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if(f) setUploadFile(f);
+}
+function fileSelected(input){
+  if(input.files[0]) setUploadFile(input.files[0]);
+}
+function setUploadFile(f){
+  _uploadFile = f;
+  const ext = f.name.split('.').pop().toLowerCase();
+  const icons = {xlsx:'📊',xls:'📊',xlsm:'📊',pdf:'📕',docx:'📝',doc:'📝'};
+  document.getElementById('dropLabel').textContent = `${icons[ext]||'📄'} ${f.name} (${(f.size/1024).toFixed(0)} KB)`;
+  document.getElementById('dropZone').style.borderColor = 'var(--done)';
+  document.getElementById('uploadBtn').disabled = false;
+}
+
+async function doUpload(){
+  if(!_uploadFile){ toast('Válassz fájlt!','err'); return; }
+  const btn = document.getElementById('uploadBtn');
+  const res_el = document.getElementById('uploadResult');
+  btn.textContent = '⏳ AI feldolgoz…'; btn.disabled = true;
+
+  res_el.className = 'upload-result run';
+  res_el.textContent = 'Feltöltés és AI feldolgozás folyamatban… (llama3:8b, ~30-120s)';
+  res_el.style.display = 'block';
+
+  try{
+    const fd = new FormData();
+    fd.append('file', _uploadFile);
+    const sid = document.getElementById('uploadSourceId').value;
+    if(sid) fd.append('source_id', sid);
+
+    const r = await fetch(`${API}/web/upload`, {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + getToken()},
+      body: fd
+    });
+    const d = await r.json();
+
+    if(r.ok){
+      res_el.className = 'upload-result ok';
+      res_el.innerHTML = `✓ <strong>${d.saved} ár mentve</strong> — ${esc(d.filename)}<br>
+        <span style="font-size:.72rem;color:var(--text-muted);">${
+          (d.products||[]).slice(0,5).map(p=>`${esc(p.name)} | ${Number(p.price).toLocaleString('hu-HU')} Ft`).join('<br>')
+        }${d.saved>5?`<br>…és még ${d.saved-5} db`:''}
+        </span>`;
+      toast(`✓ ${d.saved} ár mentve – ${d.filename}`);
+      await loadSources();
+      renderSourcesList();
+    } else {
+      res_el.className = 'upload-result err';
+      res_el.textContent = `✗ ${d.detail||'Szerver hiba'}`;
+      toast(d.detail||'Feltöltési hiba','err');
+    }
+  } catch(e){
+    res_el.className = 'upload-result err';
+    res_el.textContent = `✗ Kapcsolati hiba: ${e.message}`;
+    toast('Kapcsolati hiba','err');
+  } finally {
+    btn.textContent = 'Feltölt & AI feldolgoz';
     btn.disabled = false;
   }
 }
