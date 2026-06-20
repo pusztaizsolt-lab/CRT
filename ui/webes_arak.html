@@ -538,6 +538,7 @@ async function loadScripts(sourceId){
             ${sc.active?'<span style="font-size:.65rem;color:var(--done);margin-left:.3rem;">● aktív</span>':'<span style="font-size:.65rem;color:var(--text-muted);margin-left:.3rem;">inaktív</span>'}
           </div>
           <div style="display:flex;gap:.4rem;">
+            <button class="btn btn-sm btn-primary" onclick="runScript(${sc.id},${sourceId})">▶ Futtat</button>
             <button class="btn btn-sm" onclick="viewScript(${sc.id})">Lépések</button>
             <button class="btn btn-sm btn-danger" onclick="deleteScript(${sc.id},${sourceId})">Töröl</button>
           </div>
@@ -695,6 +696,64 @@ function cancelRecord(){
   document.getElementById('recordPanel').classList.remove('active');
   document.getElementById('teachBtns').style.opacity='';
   document.getElementById('teachBtns').style.pointerEvents='';
+}
+
+// ── SCRIPT FUTTATÁS ───────────────────────────────────────────
+async function runScript(scriptId, sourceId){
+  const btn = event.currentTarget;
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Fut…';
+  btn.disabled = true;
+
+  const resultId = `runResult_${scriptId}`;
+  let resultEl = document.getElementById(resultId);
+  if(!resultEl){
+    resultEl = document.createElement('div');
+    resultEl.id = resultId;
+    resultEl.style.cssText = 'margin-top:.5rem;padding:.5rem .7rem;border-radius:6px;font-size:.78rem;';
+    btn.closest('.script-card').appendChild(resultEl);
+  }
+  resultEl.style.background = 'rgba(124,106,247,.08)';
+  resultEl.style.color = 'var(--text-muted)';
+  resultEl.textContent = 'Playwright böngésző indul, kérlek várj…';
+
+  try{
+    const res = await fetch(`${API}/web/scripts/${scriptId}/run`,{
+      method:'POST', headers:authH()
+    });
+    const d = await res.json();
+    if(res.ok){
+      const saved  = d.prices_saved || 0;
+      const errors = d.errors || [];
+      if(saved > 0){
+        resultEl.style.background = 'rgba(62,207,142,.08)';
+        resultEl.style.color = 'var(--done)';
+        resultEl.textContent = `✓ ${saved} ár mentve (${d.steps_executed} lépés)`;
+        loadPrices(sourceId);
+        await loadSources(); renderSourcesList();
+      } else if(errors.length){
+        resultEl.style.background = 'rgba(231,76,60,.08)';
+        resultEl.style.color = 'var(--err)';
+        resultEl.textContent = `✗ 0 ár, hiba: ${errors[0]}`;
+      } else {
+        resultEl.style.background = 'rgba(245,166,35,.08)';
+        resultEl.style.color = 'var(--warn)';
+        resultEl.textContent = `⚠ Lefutott, de 0 ár találat (${d.steps_executed} lépés)`;
+      }
+      loadScripts(sourceId);
+    } else {
+      resultEl.style.background = 'rgba(231,76,60,.08)';
+      resultEl.style.color = 'var(--err)';
+      resultEl.textContent = `✗ ${d.detail||'Szerver hiba'}`;
+    }
+  } catch(e){
+    resultEl.style.background = 'rgba(231,76,60,.08)';
+    resultEl.style.color = 'var(--err)';
+    resultEl.textContent = `✗ Kapcsolati hiba: ${e.message}`;
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
 }
 
 // ── SEGÉDFÜGGVÉNYEK ───────────────────────────────────────────
