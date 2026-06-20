@@ -345,6 +345,17 @@ async def _api_post(path: str, body: dict, token: str) -> dict | None:
         return None
 
 
+async def preprocess_queue_loop():
+    """
+    [BETA — jövőbeli] Async OCR sor: db_migrate_v06 után, ha lesz
+    web_prices.pp_status='ocr_pending' sor, itt dolgozza fel a daemon.
+    Jelenleg: a /web/upload szinkronban OCR-ez (LLaVA, ~30s/oldal).
+    Ha ez túl lassú lesz → ide kerül az aszinkron feldolgozás.
+    """
+    await asyncio.sleep(60)
+    log.info("Preprocess queue loop kész (jövőbeli aszinkron OCR sorhoz)")
+
+
 async def auto_match_loop():
     """
     Autonóm AI egyeztetési ciklus.
@@ -885,6 +896,7 @@ async def main():
     asyncio.create_task(watchdog_loop())
     asyncio.create_task(heartbeat_loop())
     asyncio.create_task(auto_match_loop())
+    asyncio.create_task(preprocess_queue_loop())
 
     log.info("Daemon fut. Ctrl+C a leállításhoz.")
     try:

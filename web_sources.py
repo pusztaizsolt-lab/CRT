@@ -870,9 +870,14 @@ async def ai_commit_matches(body: dict, payload: dict = Depends(require_auth)):
     return {"committed": committed, "golden_created": golden, "skipped": skipped}
 
 
-# ── DOKUMENTUM FELTÖLTÉS (PUSH csatorna) ──────────────────────
+# ── DOKUMENTUM FELTÖLTÉS (PUSH csatorna) — 1. réteg: Preprocessor Router ──
 
-ALLOWED_EXT = {".xlsx", ".xls", ".xlsm", ".pdf", ".docx", ".doc"}
+ALLOWED_EXT = {
+    ".xlsx", ".xls", ".xlsm",          # Excel
+    ".pdf",                             # PDF (natív + szkennelt)
+    ".docx", ".doc",                    # Word
+    ".jpg", ".jpeg", ".png", ".webp",  # Kép/fotó → LLaVA OCR
+}
 
 @router.post("/upload")
 async def upload_price_list(
@@ -881,59 +886,100 @@ async def upload_price_list(
     payload:   dict = Depends(require_auth)
 ):
     """
-    PUSH csatorna: szállítói Excel/PDF/Word árlista feltöltés.
-    Az AI (llama3:8b) kinyeri a termékeket és árakat → web_prices tábla.
+    PUSH csatorna — 1. réteg: Előfeldolgozó Router.
+    A preprocessor.py dönti el mit lát (PDF natív/szkennelt, Excel, Word, kép)
+    és a megfelelő motorral nyeri ki az árakat → web_prices tábla.
+    A 2. réteg (auto_match_loop a daemon-ban) fogja a web_prices sorokat
+    cikktörzs-egyeztetéssel feldolgozni.
     """
-    import sys
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from scrapers.ai_extractor import extract_from_file
+    import preprocessor as pp
 
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXT:
-        raise HTTPException(400, f"Nem támogatott formátum: {ext}. Elfogadott: {', '.join(sorted(ALLOWED_EXT))}")
+        raise HTTPException(
+            400,
+            f"Nem támogatott formátum: {ext}. "
+            f"Elfogadott: Excel, PDF, Word, JPG/PNG/WEBP"
+        )
 
-    # Ideiglenes fájl mentése
-    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        tmp_path = tmp.name
+    file_bytes = await file.read()
+    filename   = file.filename or "ismeretlen"
 
+    log.info("PUSH feltöltés: %s (%d bájt) user=%s", filename, len(file_bytes), payload["username"])
+
+    # ── 1. réteg: előfeldolgozó router ──────────────────────
     try:
-        log.info("Dokumentum feltöltés: %s (%s) user=%s", file.filename, ext, payload["username"])
-        products = extract_from_file(tmp_path)
+        result = pp.process(file_bytes, filename)
     except Exception as e:
-        os.unlink(tmp_path)
-        raise HTTPException(500, f"Kinyerési hiba: {e}")
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        log.error("Preprocessor hiba (%s): %s", filename, e, exc_info=True)
+        raise HTTPException(500, f"Előfeldolgozási hiba: {e}")
 
-    if not products:
-        return {"status": "ok", "saved": 0, "message": "Nem található termék a dokumentumban"}
+    if not result.items:
+        return {
+            "status":       "ok",
+            "saved":        0,
+            "filename":     filename,
+            "content_type": result.content_type.value,
+            "doc_type":     result.doc_type.value,
+            "motor":        result.motor,
+            "warnings":     result.warnings,
+            "message":      "Nem található termék a dokumentumban",
+        }
 
-    # Forrás: ha nincs megadva, létrehozunk egyet a fájl neve alapján
+    # ── Forrás rekord (ha nincs megadva) ────────────────────
     if source_id is None:
         with engine.begin() as conn:
             row = conn.execute(text(
                 "INSERT INTO web_sources (name, url, source_type, status, created_at) "
                 "VALUES (:n, :u, 'document', 'reachable', NOW()) RETURNING id"
-            ), {"n": file.filename[:200], "u": f"file://{file.filename}"}).fetchone()
+            ), {"n": filename[:200], "u": f"file://{filename}"}).fetchone()
             source_id = row[0]
 
-    saved = 0
+    # ── Tételek mentése — 1. réteg metaadatokkal ───────────
+    saved    = 0
+    warn_str = "; ".join(result.warnings)[:500] if result.warnings else None
+
     with engine.begin() as conn:
-        for p in products:
+        for item in result.items:
             conn.execute(text(
                 "INSERT INTO web_prices "
-                "(source_id, raw_name, raw_price, currency, unit, scraped_at) "
-                "VALUES (:sid, :name, :price, 'HUF', 'db', NOW())"
-            ), {"sid": source_id, "name": f"[DOC] {p['name']}"[:500], "price": p["price"]})
+                "(source_id, raw_name, raw_price, currency, unit, "
+                " content_type, doc_type, pp_motor, pp_warnings, scraped_at) "
+                "VALUES (:sid, :name, :price, :cur, :unit, "
+                "        :ct, :dt, :motor, :warn, NOW())"
+            ), {
+                "sid":   source_id,
+                "name":  item.raw_name[:500],
+                "price": item.raw_price,
+                "cur":   item.currency or "HUF",
+                "unit":  item.unit,
+                "ct":    result.content_type.value,
+                "dt":    result.doc_type.value,
+                "motor": result.motor,
+                "warn":  warn_str,
+            })
             saved += 1
 
-    log.info("Dokumentum feldolgozva: %s → %d ár mentve (source_id=%d)", file.filename, saved, source_id)
+    log.info(
+        "PUSH kész: %s | %s | %s | motor=%s | %d tétel mentve (source_id=%d)",
+        filename, result.content_type.value, result.doc_type.value,
+        result.motor, saved, source_id,
+    )
+
     return {
-        "status":    "ok",
-        "filename":  file.filename,
-        "source_id": source_id,
-        "saved":     saved,
-        "products":  products[:20],
+        "status":       "ok",
+        "filename":     filename,
+        "source_id":    source_id,
+        "saved":        saved,
+        "content_type": result.content_type.value,
+        "doc_type":     result.doc_type.value,
+        "motor":        result.motor,
+        "page_count":   result.page_count,
+        "text_chars":   result.text_chars,
+        "warnings":     result.warnings,
+        "products":     [
+            {"name": it.raw_name, "price": it.raw_price,
+             "unit": it.unit, "currency": it.currency}
+            for it in result.items[:20]
+        ],
     }

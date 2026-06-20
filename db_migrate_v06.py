@@ -117,6 +117,28 @@ STEPS = [
         ADD COLUMN IF NOT EXISTS item_id VARCHAR(128);
     """),
 
+    # ── web_prices: előfeldolgozó router meta ────────────────
+    ("web_prices: content_type oszlop", """
+        ALTER TABLE web_prices
+        ADD COLUMN IF NOT EXISTS content_type VARCHAR(20);
+    """),
+    ("web_prices: doc_type oszlop", """
+        ALTER TABLE web_prices
+        ADD COLUMN IF NOT EXISTS doc_type VARCHAR(20);
+    """),
+    ("web_prices: pp_motor oszlop", """
+        ALTER TABLE web_prices
+        ADD COLUMN IF NOT EXISTS pp_motor VARCHAR(40);
+    """),
+    ("web_prices: pp_warnings oszlop", """
+        ALTER TABLE web_prices
+        ADD COLUMN IF NOT EXISTS pp_warnings TEXT;
+    """),
+    ("index: web_prices_content_type", """
+        CREATE INDEX IF NOT EXISTS idx_web_prices_content_type
+        ON web_prices(content_type) WHERE content_type IS NOT NULL;
+    """),
+
     # ── INDEX-ek ─────────────────────────────────────────────
     ("index: audit_log_created_at", """
         CREATE INDEX IF NOT EXISTS idx_audit_log_created_at
