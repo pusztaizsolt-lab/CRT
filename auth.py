@@ -150,10 +150,28 @@ def email_hint(email: str | None) -> str | None:
 
 # ── AUTH FÜGGŐSÉGEK (más routerekhez) ─────────────────────────
 
+def _read_daemon_token() -> str:
+    """DAEMON_TOKEN olvasás .env-ből — daemon service account auth."""
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("DAEMON_TOKEN="):
+                    return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return os.environ.get("DAEMON_TOKEN", "")
+
+
 def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """FastAPI dependency – JWT ellenőrzés, bármely bejelentkezett user"""
+    """FastAPI dependency – JWT ellenőrzés, bármely bejelentkezett user.
+    Daemon service account: DAEMON_TOKEN a .env-ben static bearer tokenként.
+    """
     if not credentials:
         raise HTTPException(401, "Bejelentkezés szükséges")
+    daemon_token = _read_daemon_token()
+    if daemon_token and credentials.credentials == daemon_token:
+        return {"user_id": 0, "username": "daemon", "role": "admin"}
     return decode_jwt(credentials.credentials)
 
 

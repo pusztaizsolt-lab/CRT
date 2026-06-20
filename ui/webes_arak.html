@@ -151,6 +151,41 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color
 .upload-result.ok {background:rgba(62,207,142,.1);border:1px solid var(--done);color:var(--done);}
 .upload-result.err{background:rgba(231,76,60,.1);border:1px solid var(--err);color:var(--err);}
 .upload-result.run{background:rgba(245,166,35,.08);border:1px solid var(--warn);color:var(--warn);}
+
+/* ── AI TANÍTÁS MODAL ── */
+.modal-teach{max-width:700px;}
+.teach-config{background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;padding:.9rem;margin-bottom:1rem;}
+.teach-config-row{display:grid;grid-template-columns:1fr 1fr auto;gap:.8rem;align-items:end;}
+.toggle-wrap{display:flex;flex-direction:column;gap:.3rem;}
+.toggle-wrap label:first-child{font-size:.76rem;color:var(--text-dim);}
+.toggle{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--border-hi);border-radius:22px;transition:.2s;}
+.toggle-slider:before{position:absolute;content:'';height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+.toggle input:checked+.toggle-slider{background:var(--accent);}
+.toggle input:checked+.toggle-slider:before{transform:translateX(18px);}
+.motor-status-bar{display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text-muted);margin-bottom:.8rem;min-height:1.4rem;}
+.motor-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--border-hi);}
+.motor-dot.ok{background:var(--done);}
+.motor-dot.warn{background:var(--warn);}
+.motor-dot.none{background:var(--text-muted);}
+.teach-list{max-height:340px;overflow-y:auto;margin-bottom:1rem;display:flex;flex-direction:column;gap:.4rem;}
+.teach-empty{padding:2rem;text-align:center;color:var(--text-muted);font-size:.82rem;}
+.sug-row{background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;transition:border-color .15s;}
+.sug-row.approved{border-color:var(--done);background:rgba(62,207,142,.04);}
+.sug-row.rejected{border-color:var(--err);background:rgba(231,76,60,.04);opacity:.7;}
+.sug-top{display:flex;align-items:flex-start;gap:.6rem;}
+.sug-info{flex:1;min-width:0;}
+.sug-raw{font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sug-match{font-size:.76rem;color:var(--text-dim);margin-top:.15rem;}
+.sug-match.no-match{color:var(--text-muted);font-style:italic;}
+.sug-conf{font-size:.72rem;padding:.15rem .45rem;border-radius:99px;font-weight:700;flex-shrink:0;align-self:flex-start;}
+.sug-conf.hi{background:rgba(62,207,142,.15);color:var(--done);border:1px solid var(--done);}
+.sug-conf.mid{background:rgba(245,166,35,.12);color:var(--warn);border:1px solid var(--warn);}
+.sug-conf.lo{background:rgba(231,76,60,.1);color:var(--err);border:1px solid var(--err);}
+.sug-btns{display:flex;gap:.3rem;flex-shrink:0;}
+.sug-q{font-size:.74rem;color:var(--warn);background:rgba(245,166,35,.07);border-left:2px solid var(--warn);padding:.3rem .5rem;border-radius:0 5px 5px 0;margin-top:.4rem;}
+.teach-summary{font-size:.78rem;color:var(--text-muted);padding:.4rem 0;}
 </style>
 </head>
 <body>
@@ -253,6 +288,78 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-deep);color
     <div class="modal-btns">
       <button class="btn" onclick="closeModal('modalUpload')">Mégse</button>
       <button class="btn btn-primary" id="uploadBtn" onclick="doUpload()" disabled>Feltölt &amp; AI feldolgoz</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: AI TANÍTÁS ── -->
+<div class="overlay" id="modalAiTeach">
+  <div class="modal modal-teach">
+    <h3>🎓 AI Tanítás – egyeztetés cikktörzzsel</h3>
+
+    <!-- Konfiguráció -->
+    <div class="teach-config">
+      <div class="teach-config-row">
+        <div class="field" style="margin:0;">
+          <label>AI motor</label>
+          <select id="teachMotor" onchange="onTeachMotorChange()">
+            <option value="claude">Claude Haiku API</option>
+            <option value="ollama">Ollama (öntanulás mód)</option>
+          </select>
+        </div>
+        <div class="field" id="teachApiKeyField" style="margin:0;">
+          <label>Claude API kulcs</label>
+          <input id="teachApiKey" type="password" placeholder="sk-ant-…" autocomplete="off">
+        </div>
+        <div class="toggle-wrap">
+          <label>Felügyeleti mód</label>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <label class="toggle">
+              <input type="checkbox" id="teachSupervised" checked onchange="onSupervisedChange()">
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-size:.72rem;color:var(--text-muted);" id="supervisedLabel">BE</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:.72rem;color:var(--text-muted);margin-top:.5rem;" id="teachModeDesc">
+        Felügyeleti mód BE: minden javaslatot manuálisan kell jóváhagyni ✓ / elutasítani ✗
+      </div>
+    </div>
+
+    <!-- Motor státusz (csendes, nem villog) -->
+    <div class="motor-status-bar">
+      <span class="motor-dot" id="motorDot"></span>
+      <span id="motorLabel">–</span>
+    </div>
+
+    <!-- Javaslat kérés -->
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;">
+      <button class="btn btn-primary btn-sm" onclick="loadSuggestions()" id="btnSuggest">🔍 Javaslat kérés</button>
+      <div class="field" style="margin:0;display:flex;align-items:center;gap:.4rem;">
+        <label style="margin:0;font-size:.74rem;color:var(--text-muted);">Max:</label>
+        <select id="teachLimit" style="background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.2rem .4rem;color:var(--text);font-size:.78rem;">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+      <span id="teachStatus" style="font-size:.78rem;color:var(--text-muted);"></span>
+    </div>
+
+    <!-- Javaslat lista -->
+    <div class="teach-list" id="teachList">
+      <div class="teach-empty">Kattints a „Javaslat kérés" gombra az egyeztetés indításához.</div>
+    </div>
+
+    <!-- Összesítő -->
+    <div class="teach-summary" id="teachSummary"></div>
+
+    <!-- Gombok -->
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modalAiTeach')">Bezár</button>
+      <button class="btn btn-sm" onclick="approveAll()" id="btnApproveAll" style="display:none;">✓ Mind jóváhagy</button>
+      <button class="btn btn-primary" onclick="commitApprovals()" id="btnCommit" style="display:none;">Küldés →</button>
     </div>
   </div>
 </div>
@@ -912,6 +1019,213 @@ async function checkStatus(){
     dot.className=d.status==='green'?'status-dot':'status-dot red';
     dot.title=d.status==='green'?`OK – ${d.time}`:`Hiba: ${JSON.stringify(d.checks)}`;
   } catch{ dot.className='status-dot red'; dot.title='Szerver nem elérhető'; }
+}
+
+// ── AI TANÍTÁS ────────────────────────────────────────────────
+let _suggestions = [];
+
+function openTeach(){
+  _suggestions = [];
+  document.getElementById('teachList').innerHTML = '<div class="teach-empty">Kattints a „Javaslat kérés" gombra az egyeztetés indításához.</div>';
+  document.getElementById('teachSummary').textContent = '';
+  document.getElementById('teachStatus').textContent  = '';
+  document.getElementById('btnApproveAll').style.display = 'none';
+  document.getElementById('btnCommit').style.display     = 'none';
+  setMotorStatus('none', '–');
+  // Claude API kulcs betöltés ha el van mentve
+  const saved = localStorage.getItem('crt-claude-key');
+  if(saved) document.getElementById('teachApiKey').value = saved;
+  onTeachMotorChange();
+  onSupervisedChange();
+  document.getElementById('modalAiTeach').classList.add('open');
+}
+
+function onTeachMotorChange(){
+  const m = document.getElementById('teachMotor').value;
+  document.getElementById('teachApiKeyField').style.display = m==='claude' ? '' : 'none';
+}
+
+function onSupervisedChange(){
+  const on = document.getElementById('teachSupervised').checked;
+  document.getElementById('supervisedLabel').textContent = on ? 'BE' : 'KI';
+  document.getElementById('teachModeDesc').textContent = on
+    ? 'Felügyeleti mód BE: minden javaslatot manuálisan kell jóváhagyni ✓ / elutasítani ✗'
+    : 'Felügyeleti mód KI: confidence ≥ 0.90 automatikusan jóváhagyva, többi kézi';
+  if(_suggestions.length) _autoApprove();
+}
+
+function setMotorStatus(type, label){
+  document.getElementById('motorDot').className = `motor-dot ${type}`;
+  document.getElementById('motorLabel').textContent = label;
+}
+
+async function loadSuggestions(){
+  const btn   = document.getElementById('btnSuggest');
+  const stat  = document.getElementById('teachStatus');
+  const motor = document.getElementById('teachMotor').value;
+  const apiKey= document.getElementById('teachApiKey').value.trim();
+  const limit = parseInt(document.getElementById('teachLimit').value);
+
+  // Claude API kulcs mentése ha megadták
+  if(motor==='claude' && apiKey){
+    localStorage.setItem('crt-claude-key', apiKey);
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Kérdezem az AI-t…';
+  stat.textContent = '';
+  document.getElementById('teachList').innerHTML = '<div class="teach-empty">AI elemzés folyamatban…</div>';
+  document.getElementById('btnApproveAll').style.display = 'none';
+  document.getElementById('btnCommit').style.display     = 'none';
+
+  try{
+    const body = {limit};
+    if(motor === 'claude' && apiKey) body.api_key = apiKey;
+    if(motor === 'ollama') body.force_ollama = true;
+
+    const res = await fetch(`${API}/web/prices/ai-suggest`, {
+      method:'POST', headers:authH(), body:JSON.stringify(body)
+    });
+    const d = await res.json();
+
+    if(!res.ok){
+      stat.textContent = d.detail || 'Hiba';
+      document.getElementById('teachList').innerHTML = `<div class="teach-empty" style="color:var(--err);">✗ ${d.detail||'Szerver hiba'}</div>`;
+      return;
+    }
+
+    const sug = d.suggestions || [];
+    _suggestions = sug.map(s => ({...s, status: 'pending'}));
+
+    // Motor státusz (csendes — nincs blinking hiba ha kiesett a Claude)
+    if(d.motor === 'claude'){
+      setMotorStatus('ok', `Claude Haiku – ${sug.length} javaslat`);
+    } else if(d.motor === 'ollama'){
+      setMotorStatus('warn', `Ollama öntanulás mód – ${sug.length} javaslat (Claude API nem elérhető)`);
+    } else {
+      setMotorStatus('none', 'Nincs elérhető motor');
+    }
+
+    if(!sug.length){
+      document.getElementById('teachList').innerHTML = '<div class="teach-empty">Nincs egyeztetendő ár, vagy már mind feldolgozva.</div>';
+      return;
+    }
+
+    // Felügyeleti mód KI → auto jóváhagy magas confidence-ű tételeket
+    if(!document.getElementById('teachSupervised').checked){
+      _autoApprove();
+    }
+
+    renderSuggestions();
+    document.getElementById('btnApproveAll').style.display = '';
+    document.getElementById('btnCommit').style.display     = '';
+
+  } catch(e){
+    stat.textContent = `Kapcsolati hiba: ${e.message}`;
+    document.getElementById('teachList').innerHTML = `<div class="teach-empty" style="color:var(--err);">✗ Kapcsolati hiba</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Javaslat kérés';
+  }
+}
+
+function _autoApprove(){
+  _suggestions.forEach(s=>{
+    if(s.status==='pending' && s.item_id && s.confidence >= 0.9) s.status='approved';
+  });
+}
+
+function confClass(c){
+  if(c >= 0.85) return 'hi';
+  if(c >= 0.65) return 'mid';
+  return 'lo';
+}
+
+function renderSuggestions(){
+  const el = document.getElementById('teachList');
+  if(!_suggestions.length){ el.innerHTML='<div class="teach-empty">Nincs adat.</div>'; return; }
+
+  el.innerHTML = _suggestions.map((s,i)=>{
+    const pct = Math.round((s.confidence||0)*100);
+    const cc  = confClass(s.confidence||0);
+    const hasMatch = !!s.item_id;
+    return `
+    <div class="sug-row ${s.status}" id="sug-${i}">
+      <div class="sug-top">
+        <div class="sug-info">
+          <div class="sug-raw" title="${esc(s.raw_name||'')}">${esc(s.raw_name||'–')}</div>
+          <div class="sug-match${hasMatch?'':' no-match'}">${hasMatch ? `→ ${esc(s.item_name||s.item_id)}` : 'Nincs egyezés (egyedi tétel)'}</div>
+        </div>
+        <span class="sug-conf ${cc}">${pct}%</span>
+        <div class="sug-btns">
+          <button class="btn btn-sm btn-done" onclick="approveSuggestion(${i})" title="Jóváhagy" ${!hasMatch?'disabled':''}>✓</button>
+          <button class="btn btn-sm btn-danger" onclick="rejectSuggestion(${i})" title="Elutasít">✗</button>
+        </div>
+      </div>
+      ${s.question ? `<div class="sug-q">❓ ${esc(s.question)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  updateTeachSummary();
+}
+
+function approveSuggestion(i){
+  _suggestions[i].status = _suggestions[i].status==='approved' ? 'pending' : 'approved';
+  renderSuggestions();
+}
+
+function rejectSuggestion(i){
+  _suggestions[i].status = _suggestions[i].status==='rejected' ? 'pending' : 'rejected';
+  renderSuggestions();
+}
+
+function approveAll(){
+  _suggestions.forEach(s=>{ if(s.item_id) s.status='approved'; });
+  renderSuggestions();
+}
+
+function updateTeachSummary(){
+  const total    = _suggestions.length;
+  const approved = _suggestions.filter(s=>s.status==='approved').length;
+  const rejected = _suggestions.filter(s=>s.status==='rejected').length;
+  const pending  = total - approved - rejected;
+  document.getElementById('teachSummary').textContent =
+    `Összesen: ${total} · Jóváhagyva: ${approved} · Elutasítva: ${rejected} · Döntetlen: ${pending}`;
+}
+
+async function commitApprovals(){
+  const btn = document.getElementById('btnCommit');
+  const approvals = _suggestions
+    .filter(s => s.status !== 'pending')
+    .map(s => ({
+      price_id:   s.price_id,
+      item_id:    s.status==='approved' ? s.item_id : null,
+      confidence: s.confidence,
+      accepted:   s.status==='approved',
+    }));
+
+  if(!approvals.length){ toast('Nincs döntött tétel.','warn'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Mentés…';
+  try{
+    const res = await fetch(`${API}/web/prices/ai-commit`,{
+      method:'POST', headers:authH(), body:JSON.stringify({approvals})
+    });
+    const d = await res.json();
+    if(res.ok){
+      toast(`✓ ${d.committed} egyezés mentve, ${d.golden_created} golden példa létrehozva`);
+      closeModal('modalAiTeach');
+      await loadSources();
+      renderSourcesList();
+    } else {
+      toast(d.detail||'Hiba','err');
+    }
+  } catch{ toast('Szerver hiba','err'); }
+  finally{
+    btn.disabled = false;
+    btn.textContent = 'Küldés →';
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────────

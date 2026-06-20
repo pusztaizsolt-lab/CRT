@@ -31,11 +31,13 @@ except ImportError:
     PSUTIL = False
 
 # ── KONFIG ────────────────────────────────────────────────────
-ROOT             = Path(__file__).parent
-DAEMON_PORT      = 8099
-PING_INTERVAL    = 20    # másodperc — TCP + HTTP ping
-AI_DEEP_INTERVAL = 300   # másodperc — AI inference teszt (5 perc)
-LOG_FILE         = ROOT / "logs" / "daemon.log"
+ROOT               = Path(__file__).parent
+DAEMON_PORT        = 8099
+PING_INTERVAL      = 20    # másodperc — TCP + HTTP ping
+AI_DEEP_INTERVAL   = 300   # másodperc — AI inference teszt (5 perc)
+AUTO_MATCH_INTERVAL = 900  # másodperc — autonóm AI egyeztetés (15 perc)
+API_BASE           = "http://127.0.0.1:8000"
+LOG_FILE           = ROOT / "logs" / "daemon.log"
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
@@ -110,6 +112,17 @@ state: dict[str, dict] = {
 _last_email_error: dict[str, float] = {}
 _last_ai_deep: float = 0.0      # epoch — utolsó AI inference teszt
 _ai_deep_result: dict = {}      # cache az utolsó AI teszt eredményéből
+
+# ── AUTO MATCH ÁLLAPOT ────────────────────────────────────────
+_match_state: dict = {
+    "last_run":       None,   # ISO timestamp
+    "motor":          None,   # "claude" | "ollama" | None
+    "matched":        0,      # auto-commit darab (session)
+    "golden":         0,      # golden example darab (session)
+    "pending":        0,      # kézi jóváhagyásra vár
+    "total_today":    0,      # mai összes egyeztetett
+    "error":          None,
+}
 
 
 # ── PING PIPE-OK ──────────────────────────────────────────────
@@ -292,6 +305,154 @@ def _send_email(subject: str, body: str):
         log.error("Email hiba: %s", e)
 
 
+# ── AUTO MATCH — autonóm AI egyeztetési mag ───────────────────
+# A daemon minden AUTO_MATCH_INTERVAL másodpercben:
+#   1. lekérdezi a párosítatlan web_prices-ok számát
+#   2. meghívja az ai-suggest endpointot (Claude → Ollama fallback)
+#   3. auto-commit: confidence >= 0.90 → azonnal elfogad
+#   4. 0.75–0.89: pending státusz → kézi jóváhagyás a UI-ban
+#
+# Szükséges: DAEMON_TOKEN a .env-ben + FastAPI-ban accept-álva.
+# Ha DAEMON_TOKEN nincs beállítva → a loop üzemmód kimarad, csak figyelmeztetés.
+
+def _daemon_token() -> str:
+    cfg = _load_smtp_config()
+    return cfg.get("DAEMON_TOKEN", "")
+
+
+async def _api_post(path: str, body: dict, token: str) -> dict | None:
+    """Belső FastAPI POST hívás a daemon saját token-jével."""
+    if not AIOHTTP:
+        return None
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post(
+                f"{API_BASE}{path}",
+                json=body,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                timeout=aiohttp.ClientTimeout(total=60),
+            ) as r:
+                if r.status in (200, 201):
+                    return await r.json()
+                txt = await r.text()
+                log.warning("API %s → %d: %s", path, r.status, txt[:120])
+                return None
+    except Exception as e:
+        log.warning("API hívás hiba %s: %s", path, str(e)[:80])
+        return None
+
+
+async def auto_match_loop():
+    """
+    Autonóm AI egyeztetési ciklus.
+    FastAPI-ra vár (max 120s), majd AUTO_MATCH_INTERVAL-onként fut.
+    """
+    global _match_state
+    token = _daemon_token()
+    if not token:
+        log.warning(
+            "AUTO MATCH: DAEMON_TOKEN nincs beállítva a .env-ben → "
+            "automatikus egyeztetés kikapcsolva. "
+            "Add hozzá: DAEMON_TOKEN=<long-lived-jwt>"
+        )
+        return
+
+    # Megvárjuk hogy a FastAPI elinduljon
+    log.info("Auto match: FastAPI-ra vár (max 120s)…")
+    for _ in range(24):
+        if state.get("fastapi", {}).get("status") == "ok":
+            break
+        await asyncio.sleep(5)
+    else:
+        log.warning("Auto match: FastAPI nem indult el 120s alatt, kihagyva")
+        return
+
+    log.info("Auto match ciklus indul — %ds-enként", AUTO_MATCH_INTERVAL)
+
+    while True:
+        await asyncio.sleep(AUTO_MATCH_INTERVAL)
+        await _run_auto_match(token)
+
+
+async def _run_auto_match(token: str):
+    global _match_state
+
+    # FastAPI elérhetőség — ha le van, kihagyjuk
+    if state.get("fastapi", {}).get("status") != "ok":
+        _match_state["error"] = "FastAPI nem elérhető"
+        return
+
+    log.info("Auto match: egyeztetés indul…")
+    _match_state["error"] = None
+
+    # 1. Javaslat kérés (max 50 tétel / futás)
+    suggest = await _api_post(
+        "/web/prices/ai-suggest",
+        {"limit": 50},
+        token,
+    )
+    if not suggest:
+        _match_state["error"] = "ai-suggest sikertelen"
+        return
+
+    motor       = suggest.get("motor", "none")
+    suggestions = suggest.get("suggestions", [])
+    _match_state["motor"]    = motor
+    _match_state["last_run"] = datetime.now().isoformat()
+
+    if not suggestions:
+        log.info("Auto match: nincs egyeztetendő ár")
+        _match_state["pending"] = 0
+        return
+
+    # 2. Szétválasztás: auto-commit (conf ≥ 0.90) vs. pending
+    auto_approvals = []
+    pending_count  = 0
+    for s in suggestions:
+        conf    = s.get("confidence", 0.0)
+        item_id = s.get("item_id")
+        if item_id and conf >= 0.90:
+            auto_approvals.append({
+                "price_id":   s["price_id"],
+                "item_id":    item_id,
+                "confidence": conf,
+                "accepted":   True,
+            })
+        else:
+            pending_count += 1
+
+    _match_state["pending"] = pending_count
+
+    if not auto_approvals:
+        log.info(
+            "Auto match (%s): %d javaslat, mind kézi jóváhagyásra vár (conf<0.90)",
+            motor, len(suggestions)
+        )
+        return
+
+    # 3. Auto-commit
+    commit = await _api_post(
+        "/web/prices/ai-commit",
+        {"approvals": auto_approvals},
+        token,
+    )
+    if commit:
+        matched = commit.get("committed", 0)
+        golden  = commit.get("golden_created", 0)
+        _match_state["matched"]     = matched
+        _match_state["golden"]      = golden
+        _match_state["total_today"] = _match_state.get("total_today", 0) + matched
+        log.info(
+            "Auto match (%s): %d egyezés mentve, %d golden példa, %d kézi vár",
+            motor, matched, golden, pending_count
+        )
+    else:
+        _match_state["error"] = "ai-commit sikertelen"
+
+
 # ── DB HEALTH — SELECT NOW (olvasás echo, nincs audit_log szennyezés) ──
 
 async def _db_health_check() -> dict:
@@ -416,7 +577,8 @@ async def handle_status(_req) -> "web.Response":
             "degraded": sum(1 for s in state.values() if s["status"] == "degraded"),
             "unknown":  sum(1 for s in state.values() if s["status"] == "unknown"),
         },
-        "metrics": _os_metrics(),
+        "metrics":    _os_metrics(),
+        "auto_match": _match_state,
     }
     return _json_resp(data)
 
@@ -448,7 +610,8 @@ async def handle_events(req) -> "web.StreamResponse":
                     "down":     sum(1 for s in state.values() if s["status"] == "down"),
                     "degraded": sum(1 for s in state.values() if s["status"] == "degraded"),
                 },
-                "metrics": _os_metrics(),
+                "metrics":    _os_metrics(),
+                "auto_match": _match_state,
             }
             await resp.write(
                 f"data: {json.dumps(payload, default=str)}\n\n".encode()
@@ -466,6 +629,19 @@ async def handle_restart(req) -> "web.Response":
         return _json_resp({"error": "nem található"}, 404)
     await _on_down(comp)
     return _json_resp({"status": "restart kísérlet indítva", "id": cid})
+
+
+async def handle_match_now(_req) -> "web.Response":
+    """Azonnali egyeztetési futás — dashboard 'Most futtat' gomb."""
+    token = _daemon_token()
+    if not token:
+        return _json_resp({"error": "DAEMON_TOKEN nincs beállítva"}, 503)
+    asyncio.create_task(_run_auto_match(token))
+    return _json_resp({"status": "egyeztetés indítva", "time": datetime.now().isoformat()})
+
+
+async def handle_match_state(_req) -> "web.Response":
+    return _json_resp(_match_state)
 
 
 async def handle_ui(_req) -> "web.Response":
@@ -544,6 +720,19 @@ footer a{color:#5050c0;text-decoration:none;margin:0 .35rem}
   <div class="section"><h2>Stats</h2><div id="g-stats"></div></div>
 </div>
 
+<div style="margin-top:.9rem;background:#0a0a14;border:1px solid #1e1e30;border-radius:8px;padding:.7rem .9rem;">
+  <div style="font-size:.65rem;letter-spacing:.12em;color:#4a4a6a;text-transform:uppercase;margin-bottom:.55rem;">Auto Match – AI egyeztetési mag</div>
+  <div style="display:flex;gap:1.5rem;font-size:.78rem;flex-wrap:wrap;align-items:center;">
+    <div>Motor: <span id="am-motor" style="color:#9898b8;">–</span></div>
+    <div>Utolsó futás: <span id="am-last" style="color:#9898b8;">–</span></div>
+    <div>Mai egyezés: <span id="am-matched" style="color:#3ecf8e;">–</span></div>
+    <div>Golden: <span id="am-golden" style="color:#7c6af7;">–</span></div>
+    <div>Kézi vár: <span id="am-pending" style="color:#f5a623;">–</span></div>
+    <div id="am-err" style="color:#e74c3c;display:none;"></div>
+    <button onclick="matchNow()" style="margin-left:auto;font-size:.65rem;padding:.2rem .55rem;background:#141428;border:1px solid #2a2a44;color:#7c6af7;border-radius:3px;cursor:pointer;">▶ Most futtat</button>
+  </div>
+</div>
+
 <footer>
   CRT Daemon
   <a href="/status">JSON</a>
@@ -594,11 +783,31 @@ function upd(data){
   document.getElementById('m-up').textContent   = m.uptime_s!=null?fmtUp(m.uptime_s):'–';
   render(data.components);
   document.getElementById('lu').textContent='frissítve '+fmtT(data.time);
+  if(data.auto_match) updAutoMatch(data.auto_match);
 }
 
 async function rst(cid){
   if(!confirm(`Restart: ${cid}?`)) return;
   await fetch(`/restart/${cid}`,{method:'POST'});
+}
+
+async function matchNow(){
+  const r = await fetch('/match-now',{method:'POST'});
+  const d = await r.json();
+  document.getElementById('am-last').textContent = d.error || 'indítva…';
+}
+
+function updAutoMatch(am){
+  if(!am) return;
+  document.getElementById('am-motor').textContent   = am.motor || '–';
+  document.getElementById('am-matched').textContent = am.total_today ?? am.matched ?? '–';
+  document.getElementById('am-golden').textContent  = am.golden ?? '–';
+  document.getElementById('am-pending').textContent = am.pending ?? '–';
+  const lastEl = document.getElementById('am-last');
+  lastEl.textContent = am.last_run ? am.last_run.slice(11,19) : '–';
+  const errEl = document.getElementById('am-err');
+  if(am.error){ errEl.textContent='✗ '+am.error; errEl.style.display=''; }
+  else { errEl.style.display='none'; }
 }
 
 function sse(){
@@ -659,6 +868,8 @@ async def main():
         app.router.add_get("/metrics",                 handle_metrics)
         app.router.add_get("/events",                  handle_events)
         app.router.add_post("/restart/{component_id}", handle_restart)
+        app.router.add_post("/match-now",              handle_match_now)
+        app.router.add_get("/match-state",             handle_match_state)
 
         runner = web.AppRunner(app)
         await runner.setup()
@@ -673,6 +884,7 @@ async def main():
 
     asyncio.create_task(watchdog_loop())
     asyncio.create_task(heartbeat_loop())
+    asyncio.create_task(auto_match_loop())
 
     log.info("Daemon fut. Ctrl+C a leállításhoz.")
     try:
