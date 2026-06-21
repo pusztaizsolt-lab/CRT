@@ -117,6 +117,17 @@ STEPS = [
         ADD COLUMN IF NOT EXISTS item_id VARCHAR(128);
     """),
 
+    # ── web_sources: hiányzó státusz oszlopok ───────────────────
+    ("web_sources: last_reached", """
+        ALTER TABLE web_sources ADD COLUMN IF NOT EXISTS last_reached TIMESTAMP;
+    """),
+    ("web_sources: last_scraped", """
+        ALTER TABLE web_sources ADD COLUMN IF NOT EXISTS last_scraped TIMESTAMP;
+    """),
+    ("web_sources: error_msg", """
+        ALTER TABLE web_sources ADD COLUMN IF NOT EXISTS error_msg TEXT;
+    """),
+
     # ── web_prices: előfeldolgozó router meta ────────────────
     ("web_prices: content_type oszlop", """
         ALTER TABLE web_prices

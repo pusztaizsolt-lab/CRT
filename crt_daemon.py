@@ -55,7 +55,7 @@ COMPONENTS = [
     # ── PROCESS SZINT (TCP socket ping) ──────────────────────
     {
         "id": "postgresql", "label": "PostgreSQL", "type": "process",
-        "host": "127.0.0.1", "port": 5433,
+        "host": "127.0.0.1", "port": 5432,
         "restart": str(ROOT / "pg_start.bat"),
     },
     {
@@ -475,7 +475,7 @@ async def _db_health_check() -> dict:
         import psycopg2
         cfg = _load_smtp_config()  # .env-ből veszi a DB adatokat is
         dsn = (
-            f"host=127.0.0.1 port={cfg.get('DB_PORT', 5433)} "
+            f"host=127.0.0.1 port={cfg.get('DB_PORT', 5432)} "
             f"dbname={cfg.get('DB_NAME', 'crt')} "
             f"user={cfg.get('DB_USER', 'crt_user')} "
             f"password={cfg.get('DB_PASS', '')} "
