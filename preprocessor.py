@@ -190,10 +190,18 @@ def _parse_price_text(text: str) -> list[PriceItem]:
     items = _regex_parse(text)
     if len(items) >= 3:
         return items
-    # Regex keveset talált — llama3 próba
+    # Regex keveset talált — llama3 próba (max 30s)
     try:
         chunk = text[:5000]
-        raw   = _ask_llama_prices(chunk)
+        raw   = _ollama_generate(
+            "Magyar szállítói árlista részlete.\n"
+            "Listazd az összes terméket és nettó árat.\n"
+            "Formátum soronként: TERMÉKNÉV | ÁR Ft\n"
+            "Ha nincs ár a tételnél, hagyd ki. Ha nincs semmi, írj: NINCS\n\n"
+            + chunk,
+            max_tokens=1000,
+            timeout=30,
+        )
         items = _regex_parse(raw)
     except Exception as e:
         log.debug("llama3 kinyerés hiba: %s", e)
@@ -340,19 +348,67 @@ def _pdf_to_images(pdf_bytes: bytes) -> list[bytes]:
 
 def _extract_excel(file_bytes: bytes) -> tuple[list[PriceItem], str, int]:
     import openpyxl
-    wb    = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-    lines = []
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+    items: list[PriceItem] = []
+    debug_lines: list[str] = []
+    _NAME_HINTS  = re.compile(r"nev|name|megnevez|termek|leiras|desc", re.I)
+    _PRICE_HINTS = re.compile(r"ar|price|netto|brutto|nett[oó]|ft|huf|eur", re.I)
+    _CODE_HINTS  = re.compile(r"cikk|kod|code|szam|sku|id|ref", re.I)
+
     for sheet in wb.worksheets:
-        for row in sheet.iter_rows(values_only=True):
-            cells = [str(c).strip() for c in row if c is not None and str(c).strip() not in ("", "None")]
-            if cells:
-                lines.append("  |  ".join(cells))
-        if len(lines) > 3000:
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows:
+            continue
+        # Fejlécsor keresése (első nem-üres sor)
+        header = None
+        header_idx = 0
+        for i, row in enumerate(rows[:5]):
+            cells = [str(c or "").strip() for c in row]
+            if any(c for c in cells):
+                header = cells
+                header_idx = i
+                break
+        if header is None:
+            continue
+
+        # Oszlop-index meghatározás fejléc alapján
+        name_col  = next((i for i, h in enumerate(header) if _NAME_HINTS.search(h)), None)
+        price_col = next((i for i, h in enumerate(header) if _PRICE_HINTS.search(h)), None)
+        code_col  = next((i for i, h in enumerate(header) if _CODE_HINTS.search(h)), None)
+
+        # Fallback: ha nincs fejléc-találat, próbáljuk pozíció alapján (0=kód,1=név,3=ár)
+        if name_col is None and len(header) >= 2:
+            name_col = 1
+        if price_col is None and len(header) >= 4:
+            price_col = 3
+
+        for row in rows[header_idx + 1:]:
+            cells = [str(c or "").strip() for c in row]
+            if not any(c for c in cells):
+                continue
+            name  = cells[name_col]  if name_col  is not None and name_col  < len(cells) else ""
+            price_raw = cells[price_col] if price_col is not None and price_col < len(cells) else ""
+            code  = cells[code_col]  if code_col  is not None and code_col  < len(cells) else ""
+            price = _parse_price(price_raw)
+            if name and price and price > 0:
+                items.append(PriceItem(
+                    raw_name=f"{code} {name}".strip()[:200] if code else name[:200],
+                    raw_price=price,
+                ))
+                debug_lines.append(f"{name} | {price} Ft")
+            else:
+                debug_lines.append("  |  ".join(c for c in cells if c))
+        if len(debug_lines) > 3000:
             break
+
     wb.close()
-    text    = "\n".join(lines[:3000])
-    items   = _parse_price_text(text)
-    return items, text, len(wb.sheetnames)
+    # Ha a fejlécalapú kinyerés sikertelen, fallback a regex/llama útra
+    if not items:
+        text = "\n".join(debug_lines[:3000])
+        items = _parse_price_text(text)
+    else:
+        text = "\n".join(debug_lines[:3000])
+    return items, text, 1
 
 
 def _extract_pdf_native(file_bytes: bytes) -> tuple[list[PriceItem], str, int]:

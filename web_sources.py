@@ -762,14 +762,34 @@ async def ai_suggest_matches(body: dict, payload: dict = Depends(require_auth)):
             r = _hx.post(
                 f"{ollama_url}/api/generate",
                 json={"model": ollama_model, "prompt": prompt, "stream": False,
-                      "options": {"num_predict": 2048, "temperature": 0.1}},
-                timeout=90.0,
+                      "options": {"num_predict": 4096, "temperature": 0.1}},
+                timeout=120.0,
             )
             if r.status_code == 200:
-                m = _re.search(r'\[.*\]', r.json().get("response", ""), _re.DOTALL)
-                if m:
-                    suggestions = _j.loads(m.group(0))
-                    motor = "ollama"
+                raw_resp = r.json().get("response", "")
+                m = _re.search(r'\[.*?\]', raw_resp, _re.DOTALL)
+                if not m:
+                    # próbáljuk a legutolsó '[' karaktertől
+                    idx = raw_resp.rfind('[')
+                    if idx != -1:
+                        fragment = raw_resp[idx:]
+                        # Ha csonkított JSON: zárjuk le
+                        if not fragment.rstrip().endswith(']'):
+                            fragment = fragment.rstrip().rstrip(',') + ']'
+                        try:
+                            suggestions = _j.loads(fragment)
+                            motor = "ollama"
+                            log.warning("Ollama: csonkított JSON javítva, %d elem", len(suggestions))
+                        except Exception:
+                            log.warning("Ollama: JSON javítás sikertelen, fragment: %s", fragment[:200])
+                else:
+                    try:
+                        suggestions = _j.loads(m.group(0))
+                        motor = "ollama"
+                    except Exception as je:
+                        log.warning("Ollama JSON parse hiba: %s | raw: %s", je, m.group(0)[:200])
+            else:
+                log.warning("Ollama HTTP %d", r.status_code)
         except Exception as e:
             log.warning("Ollama suggest hiba: %s", e)
 

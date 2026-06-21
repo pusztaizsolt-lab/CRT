@@ -264,7 +264,8 @@ async def cikktorzs_tree(_auth: dict = Depends(require_auth)):
                 "FROM activities a "
                 "LEFT JOIN prices pr ON pr.item_id = a.item_id "
                 "WHERE a.active = true "
-                "GROUP BY a.item_id ORDER BY a.name"
+                "GROUP BY a.item_id, a.name, a.category_id, a.unit, a.created_at, a.active "
+                "ORDER BY a.name"
             )).fetchall()
 
             def row2dict(r):
