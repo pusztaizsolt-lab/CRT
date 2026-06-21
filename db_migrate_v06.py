@@ -139,6 +139,34 @@ STEPS = [
         ON web_prices(content_type) WHERE content_type IS NOT NULL;
     """),
 
+    # ── products: műszaki specifikációk (JSONB) ──────────────
+    ("products: specs JSONB", """
+        ALTER TABLE products
+        ADD COLUMN IF NOT EXISTS specs JSONB DEFAULT '{}'::jsonb;
+    """),
+    ("index: products_specs GIN", """
+        CREATE INDEX IF NOT EXISTS idx_products_specs
+        ON products USING GIN (specs);
+    """),
+
+    # ── prices: nettó/bruttó + kisker/nagyker szintek ────────
+    ("prices: gross_price", """
+        ALTER TABLE prices
+        ADD COLUMN IF NOT EXISTS gross_price NUMERIC(14,2);
+    """),
+    ("prices: vat_pct", """
+        ALTER TABLE prices
+        ADD COLUMN IF NOT EXISTS vat_pct NUMERIC(5,2) DEFAULT 27.00;
+    """),
+    ("prices: price_tier", """
+        ALTER TABLE prices
+        ADD COLUMN IF NOT EXISTS price_tier VARCHAR(20) DEFAULT 'lista';
+    """),
+    ("index: prices_tier_item", """
+        CREATE INDEX IF NOT EXISTS idx_prices_tier_item
+        ON prices(item_id, price_tier);
+    """),
+
     # ── INDEX-ek ─────────────────────────────────────────────
     ("index: audit_log_created_at", """
         CREATE INDEX IF NOT EXISTS idx_audit_log_created_at
