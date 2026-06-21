@@ -504,7 +504,7 @@ def run():
                      specs, active, created_at)
                 VALUES
                     (:iid, :code, :model, :cat, :name, :unit, 'materialis',
-                     :specs::jsonb, true, :now)
+                     CAST(:specs AS jsonb), true, :now)
                 ON CONFLICT (crt_code) DO UPDATE
                 SET name=EXCLUDED.name, specs=EXCLUDED.specs,
                     model=EXCLUDED.model, updated_at=:now

@@ -195,18 +195,86 @@ STEPS = [
 ]
 
 
+def _ensure_prereqs(conn):
+    """web_sources, web_prices, quote_lines — ha hiányoznak, létrehozza."""
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS web_sources (
+            id          SERIAL PRIMARY KEY,
+            name        VARCHAR(200) NOT NULL,
+            url         TEXT,
+            source_type VARCHAR(50)  DEFAULT 'manual',
+            active      BOOLEAN      DEFAULT true,
+            created_at  TIMESTAMP    DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS web_prices (
+            id           SERIAL PRIMARY KEY,
+            source_id    INTEGER REFERENCES web_sources(id) ON DELETE CASCADE,
+            supplier_code VARCHAR(100),
+            name          TEXT,
+            net_price     NUMERIC(14,2),
+            currency      CHAR(3)  DEFAULT 'HUF',
+            unit          VARCHAR(20),
+            raw_text      TEXT,
+            confidence    NUMERIC(4,3),
+            item_id       VARCHAR(128),
+            matched_at    TIMESTAMP,
+            content_type  VARCHAR(20),
+            doc_type      VARCHAR(20),
+            pp_motor      VARCHAR(40),
+            pp_warnings   TEXT,
+            created_at    TIMESTAMP DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS quote_lines (
+            id          SERIAL PRIMARY KEY,
+            quote_id    INTEGER,
+            item_id     VARCHAR(128),
+            name        TEXT,
+            qty         NUMERIC(10,3),
+            unit        VARCHAR(20),
+            net_price   NUMERIC(14,2),
+            confidence  NUMERIC(4,3),
+            price_source VARCHAR(50),
+            created_at  TIMESTAMP DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS quotes (
+            id          SERIAL PRIMARY KEY,
+            title       VARCHAR(200),
+            client_id   INTEGER,
+            source_mode VARCHAR(20)  DEFAULT 'manual',
+            source_file VARCHAR(255),
+            base_quote_id INTEGER,
+            client_ref  VARCHAR(100),
+            status      VARCHAR(20)  DEFAULT 'draft',
+            created_at  TIMESTAMP    DEFAULT NOW(),
+            updated_at  TIMESTAMP
+        );
+    """))
+
+
 def run():
     ok = 0
     fail = 0
+
+    # Előfeltételek: hiányzó táblák létrehozása
     with engine.begin() as conn:
-        for name, sql in STEPS:
-            try:
+        _ensure_prereqs(conn)
+
+    # Minden lépés saját tranzakcióban — egy hiba nem akadályozza a többit
+    for name, sql in STEPS:
+        try:
+            with engine.begin() as conn:
                 conn.execute(text(sql.strip()))
-                print(f"  ✅ {name}")
-                ok += 1
-            except Exception as e:
-                print(f"  ⚠️  {name} – {e}")
-                fail += 1
+            print(f"  ✅ {name}")
+            ok += 1
+        except Exception as e:
+            print(f"  ⚠️  {name} – {e}")
+            fail += 1
 
     print(f"\nMigráció kész: {ok} OK, {fail} figyelmeztetés")
     if fail:

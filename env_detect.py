@@ -269,13 +269,19 @@ def print_env_summary():
 def get_db_url() -> str:
     """
     PostgreSQL kapcsolat URL.
-    Prioritás: CRT_DB_URL env var → platform-detektált default.
-    WSL2 / Linux: port 5432  |  Windows natív: port 5433
+    Prioritás: CRT_DB_URL env var → .env fájl → platform-detektált default.
     """
     url = os.environ.get("CRT_DB_URL")
     if url:
         return url
-    port = "5432" if detect_platform() in ("wsl2", "linux") else "5433"
+    # .env fájl olvasása (python-dotenv nélkül is működik)
+    env_path = pathlib.Path(__file__).parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if line.startswith("CRT_DB_URL=") and not line.startswith("#"):
+                return line.split("=", 1)[1].strip()
+    port = "5432"
     return f"postgresql://crt_user:crt2026@localhost:{port}/crt"
 
 
